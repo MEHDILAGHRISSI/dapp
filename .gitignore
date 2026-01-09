@@ -35,3 +35,7 @@ blockchain/build-info/
 .env
 .env.*
 
+
+.env
+.auth_token
+**/.env

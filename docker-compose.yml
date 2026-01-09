@@ -12,17 +12,22 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db-auth:5432/auth_location_db
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 12345678
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_AUTH_PASSWORD}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
-      SPRING_RABBITMQ_USERNAME: guest
-      SPRING_RABBITMQ_PASSWORD: guest
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      GMAIL_USERNAME: ${GMAIL_USERNAME}
+      GMAIL_PASSWORD: ${GMAIL_PASSWORD}
     depends_on:
       - db-auth
       - rabbitmq
     networks:
       - app-network
     restart: unless-stopped
+    env_file:
+      - .env
 
   # ==================== LISTING SERVICE ====================
   listing-service:
@@ -35,17 +40,21 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db-listing:5432/listing_db
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 12345678
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_LISTING_PASSWORD}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
-      SPRING_RABBITMQ_USERNAME: guest
-      SPRING_RABBITMQ_PASSWORD: guest
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
     depends_on:
       - db-listing
       - rabbitmq
     networks:
       - app-network
     restart: unless-stopped
+    env_file:
+      - .env
 
   # ==================== BOOKING SERVICE ====================
   booking-service:
@@ -56,30 +65,23 @@ services:
     ports:
       - "8083:8083"
     environment:
-      # Database Configuration
       SPRING_DATASOURCE_URL: jdbc:postgresql://db-booking:5432/booking_db
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 12345678
-
-      # RabbitMQ Configuration
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_BOOKING_PASSWORD}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
-      SPRING_RABBITMQ_USERNAME: guest
-      SPRING_RABBITMQ_PASSWORD: guest
-
-      # External Services URLs (Container-to-Container)
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       EXTERNAL_SERVICES_AUTH_URL: http://auth-service:8080
       EXTERNAL_SERVICES_LISTING_URL: http://listing-service:8081
-
-      # RabbitMQ Exchange & Routing Keys
       RABBITMQ_EXCHANGE: booking.exchange
-      RABBITMQ_ROUTING-KEY_CANCELLED: booking.cancelled
-      RABBITMQ_ROUTING-KEY_CONFIRMED: booking.confirmed
-
-      # Server Configuration
+      RABBITMQ_ROUTING_KEY_CREATED: booking.created
+      RABBITMQ_ROUTING_KEY_CANCELLED: booking.cancelled
+      RABBITMQ_ROUTING_KEY_CONFIRMED: booking.confirmed
+      RABBITMQ_ROUTING_KEY_EXPIRED: booking.expired
+      RABBITMQ_QUEUE_PAYMENT_CONFIRMED: payment.confirmed.queue
+      RABBITMQ_QUEUE_PAYMENT_FAILED: payment.failed.queue
       SERVER_PORT: 8083
-
-      # JVM Options
       JAVA_OPTS: "-Xmx512m -Xms256m"
     depends_on:
       db-booking:
@@ -99,11 +101,13 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    env_file:
+      - .env
 
   # ==================== PAYMENT SERVICE ====================
   payment-service:
     build:
-      context: ./backend/PaymentService
+      context: ./backend/paymentservice
       dockerfile: Dockerfile
     container_name: payment-service
     ports:
@@ -111,37 +115,46 @@ services:
     environment:
       # Database Configuration
       SPRING_DATASOURCE_URL: jdbc:mysql://db-payment:3306/payment_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      DB_USERNAME: root
-      DB_PASSWORD: payment_root_pass
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
 
       # RabbitMQ Configuration
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: guest
-      RABBITMQ_PASSWORD: guest
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
 
-      # Blockchain Configuration (Alchemy RPC)
-      ALCHEMY_RPC_URL: ${ALCHEMY_RPC_URL:-https://polygon-amoy.g.alchemy.com/v2/YOUR_KEY}
+      # Blockchain Configuration (from .env)
+      WEB3_RPC_URL: ${WEB3_RPC_URL}
+      WEB3_CONTRACT_ADDRESS: ${WEB3_CONTRACT_ADDRESS}
+      WEB3_PRIVATE_KEY: ${WEB3_PRIVATE_KEY}
+
+      # RabbitMQ Exchange & Routing Keys
+      RABBITMQ_EXCHANGE: payment.exchange
+      RABBITMQ_ROUTING_KEY_CONFIRMED: payment.confirmed
+      RABBITMQ_ROUTING_KEY_FAILED: payment.failed
 
       # Server Configuration
       SERVER_PORT: 8084
-
-      # JVM Options
       JAVA_OPTS: "-Xmx512m -Xms256m"
     depends_on:
       db-payment:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      blockchain:
+        condition: service_started
     networks:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/api/v1/actuator/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/payments/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
+    env_file:
+      - .env
 
   # ==================== FRONTEND ====================
   frontend:
@@ -181,7 +194,7 @@ services:
     environment:
       POSTGRES_DB: auth_location_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 12345678
+      POSTGRES_PASSWORD: ${POSTGRES_AUTH_PASSWORD}
     volumes:
       - postgres_auth_data:/var/lib/postgresql/data
     networks:
@@ -202,7 +215,7 @@ services:
     environment:
       POSTGRES_DB: listing_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 12345678
+      POSTGRES_PASSWORD: ${POSTGRES_LISTING_PASSWORD}
     volumes:
       - postgres_listing_data:/var/lib/postgresql/data
     networks:
@@ -214,16 +227,16 @@ services:
       timeout: 5s
       retries: 5
 
-  # ==================== DATABASE BOOKING (PostgreSQL) ====================
+  # ==================== DATABASE BOOKING ====================
   db-booking:
     image: postgres:15-alpine
     container_name: postgres-booking-db
     ports:
-      - "5434:5432"  # Port externe 5434 pour éviter conflit
+      - "5434:5432"
     environment:
       POSTGRES_DB: booking_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 12345678
+      POSTGRES_PASSWORD: ${POSTGRES_BOOKING_PASSWORD}
     volumes:
       - postgres_booking_data:/var/lib/postgresql/data
     networks:
@@ -235,17 +248,17 @@ services:
       timeout: 5s
       retries: 5
 
-  # ==================== DATABASE PAYMENT (MySQL) ====================
+  # ==================== DATABASE PAYMENT ====================
   db-payment:
     image: mysql:8.0
     container_name: mysql-payment-db
     ports:
-      - "3307:3306"  # Port externe 3307 pour éviter conflit avec MySQL local
+      - "3307:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: payment_root_pass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: payment_db
       MYSQL_USER: payment_user
-      MYSQL_PASSWORD: payment_pass
+      MYSQL_PASSWORD: ${MYSQL_USER_PASSWORD}
     volumes:
       - mysql_payment_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
@@ -253,7 +266,7 @@ services:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppayment_root_pass"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -263,12 +276,11 @@ services:
     image: rabbitmq:3.12-management-alpine
     container_name: my-rabbit
     ports:
-      - "5672:5672"   # AMQP port
-      - "15672:15672" # Management UI
+      - "5672:5672"
+      - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-#      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 1GB
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
       RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit log_levels [{connection,error}]"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
@@ -302,14 +314,27 @@ services:
       SERVER_PORT: 8082
       AUTH_SERVICE_URL: http://auth-service:8080
       LISTING_SERVICE_URL: http://listing-service:8081
-      BOOKING_SERVICE_URL: http://booking-service:8083  # ✅ Nouvelle route
+      BOOKING_SERVICE_URL: http://booking-service:8083
       PAYMENT_SERVICE_URL: http://payment-service:8084
-      JWT_SECRET: 48b1490f6e9272ca30668097bc848dd62101bc228bf03579f6af535d8a867dc3d5a1b9d72be2a311d2f8cd7308eed4fd13f71ccc894a56a510aec59d57bc87a6
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - auth-service
       - listing-service
       - booking-service
       - payment-service
+    networks:
+      - app-network
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  # ==================== JAEGER ====================
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: jaeger-tracing
+    ports:
+      - "16686:16686"
+      - "6831:6831/udp"
     networks:
       - app-network
     restart: unless-stopped
@@ -319,7 +344,7 @@ volumes:
     driver: local
   postgres_listing_data:
     driver: local
-  postgres_booking_data:  # ✅ Nouveau volume
+  postgres_booking_data:
     driver: local
   mysql_payment_data:
     driver: local

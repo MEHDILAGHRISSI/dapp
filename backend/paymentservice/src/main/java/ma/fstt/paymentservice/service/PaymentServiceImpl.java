@@ -23,6 +23,11 @@ import java.util.stream.Collectors;
 
 /**
  * Implémentation du service de validation de paiements blockchain
+ *
+ * Architecture modernisée:
+ * - Le FRONTEND déclenche le paiement via MetaMask
+ * - Le BACKEND valide en lecture seule (read-only)
+ * - Pas de private key stockée côté serveur
  */
 @Service
 @RequiredArgsConstructor
@@ -39,63 +44,91 @@ public class PaymentServiceImpl implements PaymentService {
      */
     private static final BigDecimal AMOUNT_TOLERANCE_PERCENTAGE = new BigDecimal("0.0001");
 
+    /**
+     * Valide un paiement blockchain après que le tenant ait appelé fund()
+     *
+     * Workflow:
+     * 1. User paie via MetaMask → Transaction minée
+     * 2. Frontend envoie txHash au backend
+     * 3. Backend lit la blockchain et vérifie:
+     *    - Transaction existe et a réussi
+     *    - Événement Funded émis
+     *    - Montant correct
+     *    - Contrat en état Funded
+     * 4. Backend confirme le paiement en DB
+     * 5. Backend notifie BookingService via RabbitMQ
+     *
+     * @param request Données de validation (bookingId, txHash, contractAddress, expectedAmount)
+     * @return PaymentResponseDTO avec status CONFIRMED ou FAILED
+     * @throws PaymentValidationException si validation échoue
+     */
     @Override
     @Transactional
     public PaymentResponseDTO validatePayment(PaymentValidationRequestDTO request) {
 
-        log.info("🔍 Validating payment for booking {} with tx {}",
+        log.info("🔐 Validating payment for booking {} with tx {}",
                 request.getBookingId(), request.getTransactionHash());
 
-        // 1. IDEMPOTENCE CHECK - Évite les doublons
+        // ==================== 1. IDEMPOTENCE CHECK ====================
+        // Évite les doublons si le frontend renvoie la même requête
         Optional<Payment> existingPayment = paymentRepository
                 .findByTransactionHash(request.getTransactionHash());
 
         if (existingPayment.isPresent()) {
             Payment payment = existingPayment.get();
-            log.info("⚠️ Payment already validated (idempotent request). Status: {}",
+            log.info("⚡ Payment already validated (idempotent request). Status: {}",
                     payment.getStatus());
             return mapToDTO(payment);
         }
 
-        // 2. Créer l'entité Payment en status VALIDATING
+        // ==================== 2. CRÉER LE PAYMENT ====================
+        // Créer l'entité Payment en status VALIDATING
         Payment payment = Payment.builder()
                 .bookingId(request.getBookingId())
                 .transactionHash(request.getTransactionHash())
                 .contractAddress(request.getContractAddress())
                 .status(PaymentStatus.VALIDATING)
-                .currency("MATIC") // TODO: Détecter automatiquement depuis le contrat
+                .currency("ETH") // Sera "MATIC" sur Polygon
                 .build();
 
         payment = paymentRepository.save(payment);
         log.debug("💾 Payment record created with ID: {}", payment.getId());
 
         try {
-            // 3. Valider la transaction via Smart Contract
-            log.info("📡 Validating transaction on blockchain...");
+            // ==================== 3. VALIDER LA TRANSACTION ====================
+            // Lire la blockchain et parser l'événement Funded
+            log.info("🔍 Validating transaction on blockchain...");
             FundedEventData eventData = escrowContract.validateFundTransaction(
                     request.getContractAddress(),
                     request.getTransactionHash()
             );
 
-            // 4. Vérifier le montant (avec tolérance de 0.01%)
+            log.info("✅ Transaction found in block {}", eventData.getBlockNumber());
+            log.info("   Tenant: {}", eventData.getTenantAddress());
+            log.info("   Amount: {} ETH", eventData.getAmount());
+
+            // ==================== 4. VÉRIFIER LE MONTANT ====================
+            // Tolérance de 0.01% pour gérer les variations de gas
             BigDecimal tolerance = request.getExpectedAmount()
                     .multiply(AMOUNT_TOLERANCE_PERCENTAGE);
             BigDecimal minAcceptable = request.getExpectedAmount().subtract(tolerance);
 
             if (eventData.getAmount().compareTo(minAcceptable) < 0) {
                 String errorMsg = String.format(
-                        "Amount mismatch: expected %.4f MATIC, got %.4f MATIC",
+                        "Amount mismatch: expected %.4f ETH, got %.4f ETH",
                         request.getExpectedAmount(), eventData.getAmount()
                 );
                 log.error("❌ {}", errorMsg);
                 throw new AmountMismatchException(errorMsg);
             }
 
-            log.info("✅ Amount verified: {} MATIC (expected: {} MATIC)",
+            log.info("✅ Amount verified: {} ETH (expected: {} ETH)",
                     eventData.getAmount(), request.getExpectedAmount());
 
-            // 5. Vérifier l'état du contrat (DOIT être Funded)
+            // ==================== 5. VÉRIFIER L'ÉTAT DU CONTRAT ====================
+            // Le contrat DOIT être en état Funded après l'appel à fund()
             ContractState state = escrowContract.getContractState(request.getContractAddress());
+
             if (state != ContractState.Funded) {
                 String errorMsg = String.format(
                         "Contract must be in Funded state, but is: %s", state
@@ -104,7 +137,10 @@ public class PaymentServiceImpl implements PaymentService {
                 throw new InvalidContractStateException(errorMsg);
             }
 
-            // 6. Mettre à jour le Payment → CONFIRMED
+            log.info("✅ Contract state verified: {}", state);
+
+            // ==================== 6. CONFIRMER LE PAIEMENT ====================
+            // Mettre à jour le Payment → CONFIRMED
             payment.setStatus(PaymentStatus.CONFIRMED);
             payment.setAmount(eventData.getAmount());
             payment.setFromAddress(eventData.getTenantAddress());
@@ -116,7 +152,8 @@ public class PaymentServiceImpl implements PaymentService {
             log.info("✅ Payment validated successfully for booking {}. Payment ID: {}",
                     request.getBookingId(), confirmedPayment.getId());
 
-            // 7. Publier l'événement RabbitMQ → BookingService
+            // ==================== 7. NOTIFIER BOOKINGSERVICE ====================
+            // Publier l'événement RabbitMQ → BookingService écoute et confirme le booking
             rabbitMQProducer.publishPaymentConfirmed(confirmedPayment);
 
             return mapToDTO(confirmedPayment);
@@ -128,7 +165,8 @@ public class PaymentServiceImpl implements PaymentService {
                  | AmountMismatchException
                  | InvalidContractStateException e) {
 
-            // Erreurs métier attendues (validation échouée)
+            // ==================== ERREURS MÉTIER ATTENDUES ====================
+            // Transaction non trouvée, montant incorrect, etc.
             log.error("❌ Payment validation failed: {}", e.getMessage());
 
             payment.setStatus(PaymentStatus.FAILED);
@@ -143,7 +181,8 @@ public class PaymentServiceImpl implements PaymentService {
 
         } catch (Exception e) {
 
-            // Erreurs techniques inattendues
+            // ==================== ERREURS TECHNIQUES INATTENDUES ====================
+            // Problème de connexion blockchain, parsing JSON, etc.
             log.error("❌ Unexpected error during payment validation", e);
 
             payment.setStatus(PaymentStatus.FAILED);
@@ -157,6 +196,13 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
+    /**
+     * Récupère le dernier paiement d'un booking
+     *
+     * @param bookingId ID du booking
+     * @return PaymentResponseDTO le plus récent
+     * @throws PaymentNotFoundException si aucun paiement trouvé
+     */
     @Override
     @Transactional(readOnly = true)
     public PaymentResponseDTO getPaymentByBookingId(Long bookingId) {
@@ -175,6 +221,13 @@ public class PaymentServiceImpl implements PaymentService {
         return mapToDTO(payments.get(0));
     }
 
+    /**
+     * Récupère tous les paiements (tentatives) d'un booking
+     * Utile pour voir l'historique (tentatives échouées puis réussie)
+     *
+     * @param bookingId ID du booking
+     * @return Liste des paiements (ordre chronologique décroissant)
+     */
     @Override
     @Transactional(readOnly = true)
     public List<PaymentResponseDTO> getAllPaymentsByBookingId(Long bookingId) {

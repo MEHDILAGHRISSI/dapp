@@ -14,10 +14,14 @@ import org.springframework.context.annotation.Configuration;
  *
  * Architecture:
  * - 1 Exchange (Topic): payment.exchange
- * - 2 Queues: payment.confirmed.queue, payment.failed.queue
- * - 2 Bindings avec routing keys: payment.confirmed, payment.failed
+ * - 3 Queues:
+ *   1. payment.booking-created.queue (écoute BookingService)
+ *   2. payment.confirmed.queue (envoie vers BookingService)
+ *   3. payment.failed.queue (envoie vers BookingService)
  *
- * BookingService écoutera ces queues via @RabbitListener
+ * Flow:
+ * BookingService → booking.created → PaymentService (écoute)
+ * PaymentService → payment.confirmed/failed → BookingService (écoute)
  */
 @Configuration
 public class RabbitMQConfig {
@@ -32,13 +36,42 @@ public class RabbitMQConfig {
     private String failedRoutingKey;
 
     /**
-     * Exchange principal pour les événements de paiement
+     * Exchange principal pour les événements
      * Type: Topic (permet le pattern matching sur routing keys)
      */
     @Bean
     public TopicExchange paymentExchange() {
         return new TopicExchange(exchange, true, false);
     }
+
+    // ========== NOUVEAU : Queue pour écouter booking.created ==========
+
+    /**
+     * Queue pour recevoir les événements de création de booking
+     * PaymentService écoute cette queue pour démarrer le processus de paiement
+     */
+    @Bean
+    public Queue bookingCreatedQueue() {
+        return QueueBuilder.durable("payment.booking-created.queue")
+                .withArgument("x-message-ttl", 86400000) // 24h TTL
+                .build();
+    }
+
+    /**
+     * Binding: payment.booking-created.queue ← booking.created
+     */
+    @Bean
+    public Binding bookingCreatedBinding(
+            Queue bookingCreatedQueue,
+            TopicExchange paymentExchange
+    ) {
+        return BindingBuilder
+                .bind(bookingCreatedQueue)
+                .to(paymentExchange)
+                .with("booking.created");  // ✅ Écoute les bookings créées
+    }
+
+    // ========== Queues pour envoyer les résultats de paiement ==========
 
     /**
      * Queue pour les paiements confirmés

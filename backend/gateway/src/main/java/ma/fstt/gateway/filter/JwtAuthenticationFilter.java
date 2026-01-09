@@ -66,14 +66,15 @@ public class JwtAuthenticationFilter implements GatewayFilter {
             }
 
             // Extraire les informations du token
-            String userId = jwtUtil.getUserIdFromToken(token);
+            String userIdStr = jwtUtil.getUserIdFromToken(token);
+            Long userId = Long.parseLong(userIdStr);
             String username = jwtUtil.getUsernameFromToken(token);
             List<String> roles = jwtUtil.getRolesFromToken(token);
             List<String> types = jwtUtil.getTypesFromToken(token);
 
             // Ajouter les informations de l'utilisateur dans les headers pour les microservices
             ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
-                    .header("X-User-Id", userId)
+                    .header("X-User-Id", String.valueOf(userId))
                     .header("X-Username", username)
                     .header("X-User-Roles", String.join(",", roles))
                     .header("X-User-Types", String.join(",", types))

@@ -36,7 +36,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("statuses") List<BookingStatus> statuses
     );
 
-    List<Booking> findByTenantId(Long tenantId);
+    List<Booking> findByTenantId(String  tenantId);
 
     List<Booking> findByPropertyId(Long propertyId);
 }

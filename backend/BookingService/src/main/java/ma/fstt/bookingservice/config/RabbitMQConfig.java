@@ -21,33 +21,64 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routing-key.confirmed}")
     private String confirmedRoutingKey;
 
-    // Nouvelle Routing Key pour l'expiration
     @Value("${rabbitmq.routing-key.expired:booking.expired}")
     private String expiredRoutingKey;
+
+    // ========== EXCHANGES ==========
 
     @Bean
     public TopicExchange bookingExchange() {
         return new TopicExchange(exchange);
     }
 
-    // --- Queues ---
+    // ========== NOUVEAU : Dead Letter Exchange ==========
+
+    @Bean
+    public DirectExchange deadLetterExchange() {
+        return new DirectExchange("rental.dlx");
+    }
+
+    @Bean
+    public Queue deadLetterQueue() {
+        return new Queue("rental.dlq", true);
+    }
+
+    @Bean
+    public Binding deadLetterBinding() {
+        return BindingBuilder
+                .bind(deadLetterQueue())
+                .to(deadLetterExchange())
+                .with("*.dead");
+    }
+
+    // ========== MODIFIER : Queues avec DLX ==========
 
     @Bean
     public Queue bookingCancelledQueue() {
-        return new Queue("booking.cancelled.queue", true);
+        return QueueBuilder.durable("booking.cancelled.queue")
+                .withArgument("x-dead-letter-exchange", "rental.dlx")
+                .withArgument("x-dead-letter-routing-key", "booking.cancelled.dead")
+                .build();
     }
 
     @Bean
     public Queue bookingConfirmedQueue() {
-        return new Queue("booking.confirmed.queue", true);
+        return QueueBuilder.durable("booking.confirmed.queue")
+                .withArgument("x-dead-letter-exchange", "rental.dlx")
+                .withArgument("x-dead-letter-routing-key", "booking.confirmed.dead")
+                .withArgument("x-message-ttl", 300000)  // 5 minutes TTL
+                .build();
     }
 
     @Bean
     public Queue bookingExpiredQueue() {
-        return new Queue("booking.expired.queue", true);
+        return QueueBuilder.durable("booking.expired.queue")
+                .withArgument("x-dead-letter-exchange", "rental.dlx")
+                .withArgument("x-dead-letter-routing-key", "booking.expired.dead")
+                .build();
     }
 
-    // --- Bindings ---
+    // ========== BINDINGS ==========
 
     @Bean
     public Binding bookingCancelledBinding() {
@@ -73,7 +104,7 @@ public class RabbitMQConfig {
                 .with(expiredRoutingKey);
     }
 
-    // --- Converters ---
+    // ========== CONVERTERS ==========
 
     @Bean
     public MessageConverter jsonMessageConverter() {

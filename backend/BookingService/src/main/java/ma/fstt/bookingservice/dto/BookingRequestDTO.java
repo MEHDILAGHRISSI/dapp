@@ -5,6 +5,12 @@ import lombok.*;
 
 import java.time.LocalDate;
 
+/**
+ * DTO for creating a new booking
+ *
+ * ✅ MODIFICATION : tenantWalletAddress supprimé
+ * Le wallet sera récupéré automatiquement depuis AuthService
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,6 +26,6 @@ public class BookingRequestDTO {
     @NotNull(message = "End date is required")
     private LocalDate endDate;
 
-    @NotNull(message = "Tenant wallet address is required")
-    private String tenantWalletAddress;
+    // ❌ SUPPRIMÉ : private String tenantWalletAddress;
+    // Le wallet est maintenant récupéré automatiquement via AuthService
 }

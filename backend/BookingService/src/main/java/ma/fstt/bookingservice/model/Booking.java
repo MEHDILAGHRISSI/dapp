@@ -25,8 +25,8 @@ public class Booking {
     @Column(nullable = false)
     private Long propertyId;
 
-    @Column(nullable = false)
-    private Long tenantId;
+    @Column(nullable = false, length = 255)
+    private String tenantId;
 
     @Column(nullable = false)
     private LocalDate startDate;

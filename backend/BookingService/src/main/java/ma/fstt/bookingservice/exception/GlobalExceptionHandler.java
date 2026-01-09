@@ -1,6 +1,5 @@
 package ma.fstt.bookingservice.exception;
 
-
 import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -17,6 +16,21 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    /**
+     * ✅ NOUVEAU : Gère l'exception quand l'utilisateur n'a pas de wallet connecté
+     */
+    @ExceptionHandler(WalletNotConnectedException.class)
+    public ResponseEntity<ErrorResponse> handleWalletNotConnected(WalletNotConnectedException ex) {
+        log.error("Wallet not connected: {}", ex.getMessage());
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Wallet Not Connected")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
 
     @ExceptionHandler(WalletMismatchException.class)
     public ResponseEntity<ErrorResponse> handleWalletMismatch(WalletMismatchException ex) {
@@ -75,8 +89,6 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ErrorResponse> buildErrorResponse(HttpStatus status, String message) {
-        // La classe ErrorResponse est maintenant ma.fstt.bookingservice.exception.ErrorResponse
-        // qui utilise @Builder de Lombok et a donc une méthode builder() sans arguments.
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(status.value())
@@ -85,5 +97,22 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(status).body(errorResponse);
+    }
+
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleServiceUnavailable(
+            ServiceUnavailableException ex) {
+        log.error("Service unavailable: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .error("Service Unavailable")
+                .message(ex.getMessage())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(errorResponse);
     }
 }

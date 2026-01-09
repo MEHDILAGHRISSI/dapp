@@ -1,6 +1,8 @@
 package com.example.authmicro_service1.controller;
 
 import com.example.authmicro_service1.dto.UserDto;
+import com.example.authmicro_service1.entities.UserEntity;
+import com.example.authmicro_service1.repositories.UserRepository;
 import com.example.authmicro_service1.requests.UserRequest;
 import com.example.authmicro_service1.requests.VerifyOTPRequest;
 import com.example.authmicro_service1.responses.UserResponse;
@@ -24,6 +26,10 @@ public class UserController {
 
     @Autowired
     userServiceImpl userService;
+
+    // ✅ AJOUT : Injection du repository pour accéder au wallet
+    @Autowired
+    private UserRepository userRepository;
 
     /**
      * Récupérer un utilisateur par son ID
@@ -137,10 +143,6 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-
-
-
-
     /**
      * Demander la réinitialisation du mot de passe
      * POST /users/forgot-password
@@ -203,7 +205,9 @@ public class UserController {
         }
     }
 
-
+    /**
+     * Mettre à jour le wallet address
+     */
     @PutMapping("/{id}/wallet")
     public ResponseEntity<Map<String, String>> updateWalletAddress(
             @PathVariable String id,
@@ -224,5 +228,43 @@ public class UserController {
             response.put("message", "Erreur interne: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
-}
+    }
+
+    /**
+     * ✅ ENDPOINT CORRIGÉ : Récupérer le statut du wallet d'un utilisateur
+     * Utilisé par BookingService pour récupérer automatiquement le wallet
+     *
+     * GET /users/{userId}/wallet/status
+     *
+     * @param userId ID de l'utilisateur (String UUID - pas Long!)
+     * @return Status du wallet avec adresse et existence
+     */
+    @GetMapping("/{userId}/wallet/status")
+    public ResponseEntity<?> getWalletStatus(@PathVariable String userId) {
+        try {
+            // ✅ CORRECTION : findByUserId() attend un String (UUID)
+            UserEntity userEntity = userRepository.findByUserId(userId);
+
+            if (userEntity == null) {
+                Map<String, String> errorResponse = new HashMap<>();
+                errorResponse.put("message", "User not found");
+                errorResponse.put("status", "error");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("userId", userEntity.getId());
+            response.put("walletAddress", userEntity.getWalletAddress());
+            response.put("exists", userEntity.getWalletAddress() != null &&
+                    !userEntity.getWalletAddress().trim().isEmpty());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Internal error: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
 }

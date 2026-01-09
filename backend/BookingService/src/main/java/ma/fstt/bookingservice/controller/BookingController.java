@@ -24,10 +24,12 @@ public class BookingController {
      * Create a new booking
      * État créé : AWAITING_PAYMENT
      * Le frontend recevra le bookingId et totalPrice pour initier le paiement
+     *
+     * ✅ CORRECTION : tenantId reçu comme String (UUID) du Gateway
      */
     @PostMapping
     public ResponseEntity<BookingResponseDTO> createBooking(
-            @RequestHeader(value = "X-User-Id", required = true) Long tenantId,
+            @RequestHeader(value = "X-User-Id", required = true) String tenantId,
             @Valid @RequestBody BookingRequestDTO request
     ) {
         log.info("Received booking request from tenant {}", tenantId);
@@ -36,53 +38,24 @@ public class BookingController {
     }
 
     /**
-     * ⚠️ ENDPOINT CRITIQUE - SÉCURITÉ REQUISE EN PRODUCTION ⚠️
-     *
-     * Cet endpoint NE DOIT PAS être accessible publiquement en production.
-     *
-     * Solutions recommandées :
-     * 1. Le retirer complètement et utiliser uniquement RabbitMQ Listener
-     * 2. Le protéger avec un API Key interne (X-Internal-Token)
-     * 3. Le mettre sur un port différent (ex: 8081) non exposé à l'extérieur
-     * 4. Vérifier que l'appel vient du PaymentService (IP whitelisting)
-     *
-     * Pour le MVP étudiant, on garde l'endpoint avec cette documentation
-     * pour montrer la compréhension du problème de sécurité.
-     *
-     * Flow attendu :
-     * Frontend → createBooking() → AWAITING_PAYMENT
-     * PaymentService → confirmBooking() → CONFIRMED
-     */
-    @PatchMapping("/{bookingId}/confirm")
-    public ResponseEntity<BookingResponseDTO> confirmBooking(
-            @PathVariable Long bookingId,
-            @RequestHeader(value = "X-Internal-Token", required = false) String internalToken
-    ) {
-        // TODO: Valider le token interne en production
-        // if (!"SECRET_INTERNAL_TOKEN".equals(internalToken)) {
-        //     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        // }
-
-        log.warn("⚠️ CONFIRMING BOOKING {} - Should only be called by PaymentService", bookingId);
-        BookingResponseDTO response = bookingService.confirmBooking(bookingId);
-        return ResponseEntity.ok(response);
-    }
-
-    /**
      * Cancel a booking (peut être appelé par l'utilisateur)
+     * ✅ SÉCURISÉ : Vérification de propriété implémentée
      */
     @PatchMapping("/{bookingId}/cancel")
     public ResponseEntity<BookingResponseDTO> cancelBooking(
             @PathVariable Long bookingId,
-            @RequestHeader(value = "X-User-Id", required = true) Long tenantId
+            @RequestHeader(value = "X-User-Id", required = true) String tenantId
     ) {
         log.info("Cancelling booking {} by tenant {}", bookingId, tenantId);
 
-        // TODO: Vérifier que l'utilisateur est le propriétaire de la réservation
-        // BookingResponseDTO booking = bookingService.getBookingById(bookingId);
-        // if (!booking.getTenantId().equals(tenantId)) {
-        //     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        // }
+        // ✅ Vérifier que l'utilisateur est le propriétaire de la réservation
+        BookingResponseDTO booking = bookingService.getBookingById(bookingId);
+
+        if (!booking.getTenantId().equals(tenantId)) {
+            log.warn("Unauthorized cancellation attempt: booking {} by user {}",
+                    bookingId, tenantId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+        }
 
         BookingResponseDTO response = bookingService.cancelBooking(bookingId);
         return ResponseEntity.ok(response);
@@ -90,10 +63,11 @@ public class BookingController {
 
     /**
      * Get all bookings for the authenticated tenant
+     * ✅ CORRECTION : tenantId reçu comme String
      */
     @GetMapping("/my-bookings")
     public ResponseEntity<List<BookingResponseDTO>> getMyBookings(
-            @RequestHeader(value = "X-User-Id", required = true) Long tenantId
+            @RequestHeader(value = "X-User-Id", required = true) String tenantId
     ) {
         log.info("Fetching bookings for tenant {}", tenantId);
         List<BookingResponseDTO> bookings = bookingService.getBookingsByTenant(tenantId);
@@ -102,20 +76,23 @@ public class BookingController {
 
     /**
      * Get a specific booking by ID
+     * ✅ SÉCURISÉ : Vérification de propriété implémentée
      */
     @GetMapping("/{bookingId}")
     public ResponseEntity<BookingResponseDTO> getBooking(
             @PathVariable Long bookingId,
-            @RequestHeader(value = "X-User-Id", required = true) Long tenantId
+            @RequestHeader(value = "X-User-Id", required = true) String tenantId
     ) {
         log.info("Fetching booking {} by tenant {}", bookingId, tenantId);
 
         BookingResponseDTO booking = bookingService.getBookingById(bookingId);
 
-        // TODO: Vérifier que l'utilisateur a le droit de voir cette réservation
-        // if (!booking.getTenantId().equals(tenantId)) {
-        //     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        // }
+        // ✅ Vérifier que l'utilisateur a le droit de voir cette réservation
+        if (!booking.getTenantId().equals(tenantId)) {
+            log.warn("Unauthorized access attempt: booking {} by user {}",
+                    bookingId, tenantId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+        }
 
         return ResponseEntity.ok(booking);
     }

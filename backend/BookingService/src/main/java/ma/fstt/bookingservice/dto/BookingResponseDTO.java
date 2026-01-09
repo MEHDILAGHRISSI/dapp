@@ -16,7 +16,7 @@ public class BookingResponseDTO {
 
     private Long id;
     private Long propertyId;
-    private Long tenantId;
+    private String  tenantId;
     private LocalDate startDate;
     private LocalDate endDate;
     private BookingStatus status;
