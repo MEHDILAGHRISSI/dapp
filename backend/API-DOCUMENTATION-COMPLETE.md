@@ -28,15 +28,24 @@
 
 ### Base URLs
 
-| Service | URL Directe | URL via Gateway (Recommandée) |
-|---------|-------------|-------------------------------|
-| **Auth Service** | `http://localhost:8080` | `http://localhost:8082/api/auth` |
-| **Listing Service** | `http://localhost:8081` | `http://localhost:8082/api/listing` |
-| **Booking Service** | `http://localhost:8083` | `http://localhost:8082/api/bookings` |
-| **Payment Service** | `http://localhost:8084` | `http://localhost:8082/api/payments` |
-| **Gateway** | `http://localhost:8082` | - |
+**⚠️ IMPORTANT:** Toutes les requêtes doivent passer par le Gateway. Les ports individuels des services (8080, 8081, 8083, 8084) ne sont **PAS accessibles** depuis l'extérieur - ils sont internes au réseau Docker.
 
-**⚠️ Recommandation:** Utilisez toujours les URLs via Gateway en production pour bénéficier du routing, de l'authentification centralisée et du CORS.
+| Service | URL (OBLIGATOIRE via Gateway) |
+|---------|-------------------------------|
+| **Auth Service** | `http://localhost:8082/api/auth` |
+| **Listing Service** | `http://localhost:8082/api/listings` |
+| **Booking Service** | `http://localhost:8082/api/bookings` |
+| **Payment Service** | `http://localhost:8082/api/payments` |
+| **Gateway Health** | `http://localhost:8082/health` |
+
+**Ports des Services (INTERNES UNIQUEMENT - Ne pas utiliser) :**
+- Auth Service: Port 8080 (accessible uniquement entre conteneurs Docker)
+- Listing Service: Port 8081 (accessible uniquement entre conteneurs Docker)
+- Booking Service: Port 8083 (accessible uniquement entre conteneurs Docker)
+- Payment Service: Port 8084 (accessible uniquement entre conteneurs Docker)
+
+**✅ À utiliser :** `http://localhost:8082` (Gateway)
+**❌ Ne PAS utiliser :** `http://localhost:8080`, `8081`, `8083`, `8084` (services internes)
 
 ### Format de Réponse
 
@@ -148,9 +157,7 @@ Password: Admin@123
 ---
 
 ## 🔑 Auth Service (Port 8080)
-
-**Base URL Directe:** `http://localhost:8080`
-**Base URL Gateway:** `http://localhost:8082/api/auth`
+**Base URL (via Gateway OBLIGATOIRE):** `http://localhost:8082/api/auth`
 
 ### 📊 Résumé des Endpoints
 
@@ -181,7 +188,7 @@ Créer un nouveau compte utilisateur.
 
 **Endpoint:** `POST /users`
 
-**Via Gateway:** `POST http://localhost:8082/api/auth/users`
+`POST http://localhost:8082/api/auth/users`
 
 **Headers:**
 ```http
@@ -232,7 +239,7 @@ Authentifier un utilisateur et obtenir un token JWT.
 
 **Endpoint:** `POST /users/login`
 
-**Via Gateway:** `POST http://localhost:8082/api/auth/users/login`
+`POST http://localhost:8082/api/auth/users/login`
 
 **Headers:**
 ```http
@@ -267,7 +274,7 @@ user_id: abc123-def456
 }
 ```
 
-**⚠️ Important:** 
+**⚠️ Important:**
 - Le token JWT est dans le **header** `Authorization`, pas dans le body!
 - Récupérez aussi le `user_id` dans les headers
 - Le token expire après 24 heures
@@ -284,7 +291,7 @@ Récupérer les informations d'un utilisateur.
 
 **Endpoint:** `GET /users/{id}`
 
-**Via Gateway:** `GET http://localhost:8082/api/auth/users/{id}`
+`GET http://localhost:8082/api/auth/users/{id}`
 
 **Headers:**
 ```http
@@ -322,7 +329,7 @@ Mettre à jour les informations d'un utilisateur.
 
 **Endpoint:** `PUT /users/{id}`
 
-**Via Gateway:** `PUT http://localhost:8082/api/auth/users/{id}`
+`PUT http://localhost:8082/api/auth/users/{id}`
 
 **Headers:**
 ```http
@@ -371,7 +378,7 @@ Supprimer un compte utilisateur (ADMIN uniquement).
 
 **Endpoint:** `DELETE /users/{id}`
 
-**Via Gateway:** `DELETE http://localhost:8082/api/auth/users/{id}`
+`DELETE http://localhost:8082/api/auth/users/{id}`
 
 **Headers:**
 ```http
@@ -402,7 +409,7 @@ Vérifier le code OTP envoyé par email.
 
 **Endpoint:** `POST /users/verify-otp`
 
-**Via Gateway:** `POST http://localhost:8082/api/auth/users/verify-otp`
+`POST http://localhost:8082/api/auth/users/verify-otp`
 
 **Headers:**
 ```http
@@ -441,7 +448,7 @@ Renvoyer un code OTP.
 
 **Endpoint:** `POST /users/resend-otp?email={email}`
 
-**Via Gateway:** `POST http://localhost:8082/api/auth/users/resend-otp?email={email}`
+`POST http://localhost:8082/api/auth/users/resend-otp?email={email}`
 
 **Query Parameters:**
 - `email` (required): Email de l'utilisateur
@@ -474,7 +481,7 @@ Demander un code de réinitialisation de mot de passe.
 
 **Endpoint:** `POST /users/forgot-password`
 
-**Via Gateway:** `POST http://localhost:8082/api/auth/users/forgot-password`
+`POST http://localhost:8082/api/auth/users/forgot-password`
 
 **Headers:**
 ```http
@@ -509,7 +516,7 @@ Réinitialiser le mot de passe avec le code reçu.
 
 **Endpoint:** `POST /users/reset-password`
 
-**Via Gateway:** `POST http://localhost:8082/api/auth/users/reset-password`
+`POST http://localhost:8082/api/auth/users/reset-password`
 
 **Headers:**
 ```http
@@ -549,7 +556,7 @@ Mettre à jour l'adresse wallet Ethereum d'un utilisateur.
 
 **Endpoint:** `PUT /users/{id}/wallet`
 
-**Via Gateway:** `PUT http://localhost:8082/api/auth/users/{id}/wallet`
+`PUT http://localhost:8082/api/auth/users/{id}/wallet`
 
 **Headers:**
 ```http
@@ -587,7 +594,7 @@ Vérifier si un utilisateur a connecté son wallet.
 
 **Endpoint:** `GET /users/{userId}/wallet/status`
 
-**Via Gateway:** `GET http://localhost:8082/api/auth/users/{userId}/wallet/status`
+`GET http://localhost:8082/api/auth/users/{userId}/wallet/status`
 
 **Headers:**
 ```http
@@ -623,7 +630,7 @@ Créer un compte agent (par l'administrateur).
 
 **Endpoint:** `POST /users/admin/agents`
 
-**Via Gateway:** `POST http://localhost:8082/api/auth/users/admin/agents`
+`POST http://localhost:8082/api/auth/users/admin/agents`
 
 **Headers:**
 ```http
@@ -668,7 +675,7 @@ Récupérer la liste de tous les agents.
 
 **Endpoint:** `GET /users/admin/agents`
 
-**Via Gateway:** `GET http://localhost:8082/api/auth/users/admin/agents`
+`GET http://localhost:8082/api/auth/users/admin/agents`
 
 **Headers:**
 ```http
@@ -706,7 +713,7 @@ Supprimer un compte agent.
 
 **Endpoint:** `DELETE /users/admin/agents/{agentId}`
 
-**Via Gateway:** `DELETE http://localhost:8082/api/auth/users/admin/agents/{agentId}`
+`DELETE http://localhost:8082/api/auth/users/admin/agents/{agentId}`
 
 **Headers:**
 ```http
@@ -725,9 +732,7 @@ X-User-Id: {userId}
 ---
 
 ## 🏠 Listing Service (Port 8081)
-
-**Base URL Directe:** `http://localhost:8081`
-**Base URL Gateway:** `http://localhost:8082/api/listing`
+**Base URL (via Gateway OBLIGATOIRE):** `http://localhost:8082/api/listings`
 
 ### 📊 Résumé des Endpoints
 
@@ -785,7 +790,7 @@ Créer une nouvelle propriété.
 
 **Endpoint:** `POST /properties`
 
-**Via Gateway:** `POST http://localhost:8082/api/listing/properties`
+`POST http://localhost:8082/api/listings/properties`
 
 **Headers:**
 ```http
@@ -876,7 +881,7 @@ Récupérer toutes les propriétés actives.
 
 **Endpoint:** `GET /properties`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/properties`
+`GET http://localhost:8082/api/listings/properties`
 
 **Headers:**
 ```http
@@ -930,7 +935,7 @@ Récupérer les détails complets d'une propriété.
 
 **Endpoint:** `GET /properties/{id}`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/properties/{id}`
+`GET http://localhost:8082/api/listings/properties/{id}`
 
 **Headers:**
 ```http
@@ -979,7 +984,7 @@ Mettre à jour une propriété existante.
 
 **Endpoint:** `PUT /properties/{id}`
 
-**Via Gateway:** `PUT http://localhost:8082/api/listing/properties/{id}`
+`PUT http://localhost:8082/api/listings/properties/{id}`
 
 **Headers:**
 ```http
@@ -1021,7 +1026,7 @@ Supprimer une propriété.
 
 **Endpoint:** `DELETE /properties/{id}`
 
-**Via Gateway:** `DELETE http://localhost:8082/api/listing/properties/{id}`
+`DELETE http://localhost:8082/api/listings/properties/{id}`
 
 **Headers:**
 ```http
@@ -1049,7 +1054,7 @@ Récupérer toutes les propriétés de l'utilisateur connecté.
 
 **Endpoint:** `GET /properties/my-properties`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/properties/my-properties`
+`GET http://localhost:8082/api/listings/properties/my-properties`
 
 **Headers:**
 ```http
@@ -1091,7 +1096,7 @@ Récupérer toutes les propriétés d'un propriétaire spécifique.
 
 **Endpoint:** `GET /properties/owner/{ownerId}`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/properties/owner/{ownerId}`
+`GET http://localhost:8082/api/listings/properties/owner/{ownerId}`
 
 **Headers:**
 ```http
@@ -1120,7 +1125,7 @@ Compter le nombre de propriétés d'un owner.
 
 **Endpoint:** `GET /properties/owner/{ownerId}/count`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/properties/owner/{ownerId}/count`
+`GET http://localhost:8082/api/listings/properties/owner/{ownerId}/count`
 
 **Headers:**
 ```http
@@ -1146,7 +1151,7 @@ Rechercher des propriétés avec des filtres avancés.
 
 **Endpoint:** `GET /properties/search`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/properties/search`
+`GET http://localhost:8082/api/listings/properties/search`
 
 **Headers:**
 ```http
@@ -1197,7 +1202,7 @@ Trouver des propriétés à proximité d'une localisation (géolocalisation).
 
 **Endpoint:** `GET /properties/nearby`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/properties/nearby`
+`GET http://localhost:8082/api/listings/properties/nearby`
 
 **Headers:**
 ```http
@@ -1256,7 +1261,7 @@ Changer le statut d'une propriété (ACTIVE/INACTIVE).
 
 **Endpoint:** `PATCH /properties/{id}/status`
 
-**Via Gateway:** `PATCH http://localhost:8082/api/listing/properties/{id}/status`
+`PATCH http://localhost:8082/api/listings/properties/{id}/status`
 
 **Headers:**
 ```http
@@ -1299,7 +1304,7 @@ Ajouter des images à une propriété.
 
 **Endpoint:** `POST /properties/{id}/images`
 
-**Via Gateway:** `POST http://localhost:8082/api/listing/properties/{id}/images`
+`POST http://localhost:8082/api/listings/properties/{id}/images`
 
 **Headers:**
 ```http
@@ -1339,7 +1344,7 @@ Supprimer des images d'une propriété.
 
 **Endpoint:** `DELETE /properties/{id}/images`
 
-**Via Gateway:** `DELETE http://localhost:8082/api/listing/properties/{id}/images`
+`DELETE http://localhost:8082/api/listings/properties/{id}/images`
 
 **Headers:**
 ```http
@@ -1377,7 +1382,7 @@ Récupérer toutes les caractéristiques disponibles.
 
 **Endpoint:** `GET /characteristics`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/characteristics`
+`GET http://localhost:8082/api/listings/characteristics`
 
 **Headers:**
 ```http
@@ -1414,7 +1419,7 @@ Créer une nouvelle caractéristique.
 
 **Endpoint:** `POST /characteristics`
 
-**Via Gateway:** `POST http://localhost:8082/api/listing/characteristics`
+`POST http://localhost:8082/api/listings/characteristics`
 
 **Headers:**
 ```http
@@ -1461,7 +1466,7 @@ Récupérer une caractéristique spécifique.
 
 **Endpoint:** `GET /characteristics/{id}`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/characteristics/{id}`
+`GET http://localhost:8082/api/listings/characteristics/{id}`
 
 **Headers:**
 ```http
@@ -1490,7 +1495,7 @@ Mettre à jour une caractéristique.
 
 **Endpoint:** `PUT /characteristics/{id}`
 
-**Via Gateway:** `PUT http://localhost:8082/api/listing/characteristics/{id}`
+`PUT http://localhost:8082/api/listings/characteristics/{id}`
 
 **Headers:**
 ```http
@@ -1525,7 +1530,7 @@ Supprimer une caractéristique.
 
 **Endpoint:** `DELETE /characteristics/{id}`
 
-**Via Gateway:** `DELETE http://localhost:8082/api/listing/characteristics/{id}`
+`DELETE http://localhost:8082/api/listings/characteristics/{id}`
 
 **Headers:**
 ```http
@@ -1551,7 +1556,7 @@ Récupérer tous les types de caractéristiques.
 
 **Endpoint:** `GET /type-caracteristiques`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/type-caracteristiques`
+`GET http://localhost:8082/api/listings/type-caracteristiques`
 
 **Headers:**
 ```http
@@ -1585,7 +1590,7 @@ Créer un nouveau type de caractéristique.
 
 **Endpoint:** `POST /type-caracteristiques`
 
-**Via Gateway:** `POST http://localhost:8082/api/listing/type-caracteristiques`
+`POST http://localhost:8082/api/listings/type-caracteristiques`
 
 **Headers:**
 ```http
@@ -1622,7 +1627,7 @@ Récupérer un type de caractéristique spécifique.
 
 **Endpoint:** `GET /type-caracteristiques/{id}`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/type-caracteristiques/{id}`
+`GET http://localhost:8082/api/listings/type-caracteristiques/{id}`
 
 **Headers:**
 ```http
@@ -1660,7 +1665,7 @@ Récupérer la liste de tous les propriétaires.
 
 **Endpoint:** `GET /owners`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/owners`
+`GET http://localhost:8082/api/listings/owners`
 
 **Headers:**
 ```http
@@ -1692,7 +1697,7 @@ Récupérer les informations d'un propriétaire spécifique.
 
 **Endpoint:** `GET /owners/{userId}`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/owners/{userId}`
+`GET http://localhost:8082/api/listings/owners/{userId}`
 
 **Headers:**
 ```http
@@ -1729,7 +1734,7 @@ Vérifier si un utilisateur est propriétaire.
 
 **Endpoint:** `GET /owners/check/{userId}`
 
-**Via Gateway:** `GET http://localhost:8082/api/listing/owners/check/{userId}`
+`GET http://localhost:8082/api/listings/owners/check/{userId}`
 
 **Headers:**
 ```http
@@ -1758,9 +1763,7 @@ X-User-Id: {userId}
 ---
 
 ## 📅 Booking Service (Port 8083)
-
-**Base URL Directe:** `http://localhost:8083`
-**Base URL Gateway:** `http://localhost:8082/api/bookings`
+**Base URL (via Gateway OBLIGATOIRE):** `http://localhost:8082/api/bookings`
 
 ### 📊 Résumé des Endpoints
 
@@ -1781,7 +1784,7 @@ Créer une nouvelle réservation.
 
 **Endpoint:** `POST /bookings`
 
-**Via Gateway:** `POST http://localhost:8082/api/bookings/bookings`
+`POST http://localhost:8082/api/bookings`
 
 **Headers:**
 ```http
@@ -1852,7 +1855,7 @@ Récupérer les détails d'une réservation.
 
 **Endpoint:** `GET /bookings/{id}`
 
-**Via Gateway:** `GET http://localhost:8082/api/bookings/bookings/{id}`
+`GET http://localhost:8082/api/bookings/{id}`
 
 **Headers:**
 ```http
@@ -1899,7 +1902,7 @@ Récupérer toutes les réservations de l'utilisateur connecté.
 
 **Endpoint:** `GET /bookings/my-bookings`
 
-**Via Gateway:** `GET http://localhost:8082/api/bookings/bookings/my-bookings`
+`GET http://localhost:8082/api/bookings/my-bookings`
 
 **Headers:**
 ```http
@@ -1955,7 +1958,7 @@ Annuler une réservation.
 
 **Endpoint:** `PATCH /bookings/{id}/cancel`
 
-**Via Gateway:** `PATCH http://localhost:8082/api/bookings/bookings/{id}/cancel`
+`PATCH http://localhost:8082/api/bookings/{id}/cancel`
 
 **Headers:**
 ```http
@@ -1996,9 +1999,7 @@ Content-Type: application/json
 ---
 
 ## 💳 Payment Service (Port 8084)
-
-**Base URL Directe:** `http://localhost:8084`
-**Base URL Gateway:** `http://localhost:8082/api/payments`
+**Base URL (via Gateway OBLIGATOIRE):** `http://localhost:8082/api/payments`
 
 ### 📊 Résumé des Endpoints
 
@@ -2018,7 +2019,7 @@ Valider un paiement pour une réservation.
 
 **Endpoint:** `POST /payments/validate`
 
-**Via Gateway:** `POST http://localhost:8082/api/payments/payments/validate`
+`POST http://localhost:8082/api/payments/payments/validate`
 
 **Headers:**
 ```http
@@ -2082,7 +2083,7 @@ Récupérer tous les paiements liés à une réservation.
 
 **Endpoint:** `GET /payments/booking/{bookingId}`
 
-**Via Gateway:** `GET http://localhost:8082/api/payments/payments/booking/{bookingId}`
+`GET http://localhost:8082/api/payments/payments/booking/{bookingId}`
 
 **Headers:**
 ```http
@@ -2118,7 +2119,7 @@ Vérifier la santé du service de paiement.
 
 **Endpoint:** `GET /payments/health`
 
-**Via Gateway:** `GET http://localhost:8082/api/payments/payments/health`
+`GET http://localhost:8082/api/payments/payments/health`
 
 **Headers:** Aucun requis
 
@@ -2274,7 +2275,7 @@ Obtenir des informations sur le Gateway.
   "status": 404,
   "error": "Not Found",
   "message": "Propriété non trouvée",
-  "path": "/api/listing/properties/prop999"
+  "path": "/api/listings/properties/prop999"
 }
 ```
 
@@ -2284,7 +2285,7 @@ Obtenir des informations sur le Gateway.
   "status": 403,
   "error": "Forbidden",
   "message": "Vous n'êtes pas autorisé à modifier cette propriété",
-  "path": "/api/listing/properties/prop123"
+  "path": "/api/listings/properties/prop123"
 }
 ```
 
@@ -2296,7 +2297,7 @@ Obtenir des informations sur le Gateway.
   "status": 409,
   "error": "Conflict",
   "message": "Ces dates ne sont pas disponibles pour cette propriété",
-  "path": "/api/bookings/bookings"
+  "path": "/api/bookings"
 }
 ```
 
@@ -2306,7 +2307,7 @@ Obtenir des informations sur le Gateway.
   "status": 400,
   "error": "Bad Request",
   "message": "Le nombre de guests dépasse la capacité maximale de la propriété",
-  "path": "/api/bookings/bookings"
+  "path": "/api/bookings"
 }
 ```
 
@@ -2374,7 +2375,7 @@ user_id: user123
 #### Étape 4: Rechercher une propriété
 
 ```bash
-curl -X GET "http://localhost:8082/api/listing/properties/search?city=Paris&minPrice=100&maxPrice=300" \
+curl -X GET "http://localhost:8082/api/listings/properties/search?city=Paris&minPrice=100&maxPrice=300" \
   -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "X-User-Id: user123"
 ```
@@ -2382,7 +2383,7 @@ curl -X GET "http://localhost:8082/api/listing/properties/search?city=Paris&minP
 #### Étape 5: Créer une réservation
 
 ```bash
-curl -X POST http://localhost:8082/api/bookings/bookings \
+curl -X POST http://localhost:8082/api/bookings \
   -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "X-User-Id: user123" \
   -H "Content-Type: application/json" \
@@ -2428,7 +2429,7 @@ curl -X POST http://localhost:8082/api/payments/payments/validate \
 #### Étape 7: Vérifier la réservation
 
 ```bash
-curl -X GET http://localhost:8082/api/bookings/bookings/booking123 \
+curl -X GET http://localhost:8082/api/bookings/booking123 \
   -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "X-User-Id: user123"
 ```
@@ -2440,7 +2441,7 @@ curl -X GET http://localhost:8082/api/bookings/bookings/booking123 \
 #### Créer une propriété
 
 ```bash
-curl -X POST http://localhost:8082/api/listing/properties \
+curl -X POST http://localhost:8082/api/listings/properties \
   -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "X-User-Id: owner123" \
   -H "Content-Type: application/json" \
@@ -2462,7 +2463,7 @@ curl -X POST http://localhost:8082/api/listing/properties \
 #### Upload des images
 
 ```bash
-curl -X POST http://localhost:8082/api/listing/properties/prop123/images \
+curl -X POST http://localhost:8082/api/listings/properties/prop123/images \
   -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "X-User-Id: owner123" \
   -F "images=@photo1.jpg" \
@@ -2473,7 +2474,7 @@ curl -X POST http://localhost:8082/api/listing/properties/prop123/images \
 #### Voir mes propriétés
 
 ```bash
-curl -X GET http://localhost:8082/api/listing/properties/my-properties \
+curl -X GET http://localhost:8082/api/listings/properties/my-properties \
   -H "Authorization: Bearer eyJhbGciOiJIUzUxMiJ9..." \
   -H "X-User-Id: owner123"
 ```
