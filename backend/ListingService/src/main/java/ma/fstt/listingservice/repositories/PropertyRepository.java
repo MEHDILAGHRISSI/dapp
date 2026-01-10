@@ -54,4 +54,7 @@ public interface PropertyRepository extends JpaRepository<PropertyEntity, Long> 
 
     // Count properties by ownerId and deletion status
     Long countByOwnerIdAndIsDeleted(String ownerId, Boolean isDeleted);
+
+    Long countByOwnerUserIdAndIsHiddenFalseAndIsDraftFalseAndIsValidatedTrue(String userId);
+
 }

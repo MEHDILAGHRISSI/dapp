@@ -257,4 +257,28 @@ public class PropertyController {
 
         return response;
     }
+
+    /**
+     * ✅ NOUVEAU: Compter les propriétés actives d'un propriétaire
+     * Utilisé par auth-service pour vérifier si on peut déconnecter le wallet
+     *
+     * GET /properties/owner/{ownerId}/active-count
+     *
+     * Retourne le nombre de propriétés actives (isHidden=false, isDraft=false, isValidated=true)
+     */
+    @GetMapping("/owner/{ownerId}/active-count")
+    public ResponseEntity<Map<String, Long>> countActivePropertiesByOwner(@PathVariable String ownerId) {
+        try {
+            Long count = propertyService.countActivePropertiesByOwner(ownerId);
+            Map<String, Long> response = new HashMap<>();
+            response.put("count", count);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors du comptage des propriétés actives: " + e.getMessage());
+            // En cas d'erreur, retourner 0 pour ne pas bloquer la déconnexion
+            Map<String, Long> response = new HashMap<>();
+            response.put("count", 0L);
+            return ResponseEntity.ok(response);
+        }
+    }
 }

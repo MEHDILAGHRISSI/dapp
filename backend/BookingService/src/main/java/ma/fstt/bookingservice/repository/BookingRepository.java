@@ -36,7 +36,38 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("statuses") List<BookingStatus> statuses
     );
 
-    List<Booking> findByTenantId(String  tenantId);
+    List<Booking> findByTenantId(String tenantId);
 
     List<Booking> findByPropertyId(Long propertyId);
+
+    /**
+     * ⚠️ ATTENTION: Cette query NE PEUT PAS fonctionner car Booking n'a pas de relation @ManyToOne avec Property!
+     * Booking a seulement propertyId (Long), pas d'objet Property.
+     *
+     * SOLUTION: On ne peut pas compter directement via cette query.
+     * Il faut soit:
+     * 1. Ajouter une relation @ManyToOne dans Booking vers Property (pas recommandé - microservices)
+     * 2. Faire la vérification différemment dans le service
+     *
+     * Pour l'instant, on retourne toujours 0 (pas de réservations futures)
+     * Cette méthode sera implémentée dans le service avec un appel à ListingService
+     */
+    // ❌ CETTE QUERY NE FONCTIONNE PAS:
+    // @Query("SELECT COUNT(b) FROM Booking b WHERE b.property.owner.userId = :hostId AND b.startDate > :today")
+    // Long countByPropertyOwnerIdAndStartDateAfter(@Param("hostId") String hostId, @Param("today") LocalDate today);
+
+    /**
+     * ✅ WORKAROUND: Compter les réservations futures par propertyId
+     * Le service fera d'abord un appel à ListingService pour récupérer les propertyIds du host
+     */
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.propertyId = :propertyId AND b.startDate > :today")
+    Long countFutureBookingsByPropertyId(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+
+    /**
+     * ✅ Compter les réservations actives d'un client
+     * ATTENTION: Utilise seulement CONFIRMED (ONGOING n'existe pas dans BookingStatus!)
+     */
+    Long countByTenantIdAndStatusIn(String tenantId, List<BookingStatus> statuses);
+
+
 }

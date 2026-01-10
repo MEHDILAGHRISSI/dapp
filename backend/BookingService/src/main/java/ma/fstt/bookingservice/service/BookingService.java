@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -341,5 +342,69 @@ public class BookingService {
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * ✅ NOUVEAU: Compter les réservations futures en tant qu'hôte
+     *
+     * ⚠️ LIMITATION: Booking n'a pas de relation directe avec Property
+     * On ne peut donc pas faire de query JPA pour récupérer les bookings par hostId
+     *
+     * SOLUTIONS POSSIBLES:
+     * 1. Appeler ListingService pour récupérer toutes les propertyIds du host, puis compter
+     * 2. Retourner toujours 0 (désactiver la vérification pour les hosts)
+     * 3. Ajouter une table de mapping host_id <-> property_id dans BookingService
+     *
+     * Pour l'instant: Solution 2 (retourner 0)
+     * Cela signifie que les hosts pourront toujours déconnecter leur wallet
+     */
+    public Long countFutureBookingsByHost(String hostId) {
+        log.warn("⚠️ countFutureBookingsByHost: Feature not fully implemented - returning 0");
+        log.warn("⚠️ Reason: Booking entity does not have @ManyToOne relationship with Property");
+        log.warn("⚠️ To fix: Either add Property relationship or call ListingService to get propertyIds");
+
+        // Option: Retourner 0 pour désactiver cette vérification
+        return 0L;
+
+        /* ALTERNATIVE: Appeler ListingService pour récupérer les propertyIds
+        try {
+            // 1. Récupérer toutes les properties du host via ListingService
+            List<Long> propertyIds = listingServiceClient.getPropertiesByOwner(hostId)
+                    .stream()
+                    .map(PropertyDTO::getId)
+                    .toList();
+
+            if (propertyIds.isEmpty()) {
+                return 0L;
+            }
+
+            // 2. Compter les bookings futurs pour ces properties
+            LocalDate today = LocalDate.now();
+            long count = 0L;
+            for (Long propertyId : propertyIds) {
+                count += bookingRepository.countFutureBookingsByPropertyId(propertyId, today);
+            }
+            return count;
+
+        } catch (Exception e) {
+            log.error("❌ Error counting future bookings for host {}: {}", hostId, e.getMessage());
+            return 0L; // En cas d'erreur, retourner 0 pour ne pas bloquer
+        }
+        */
+    }
+
+    /**
+     * ✅ NOUVEAU: Compter les réservations actives en tant que client
+     *
+     * ⚠️ FIX: Utilise seulement CONFIRMED
+     * ONGOING n'existe pas dans BookingStatus!
+     */
+    public Long countActiveBookingsByClient(String clientId) {
+        // ✅ Utiliser seulement les statuses qui existent
+        // CONFIRMED = réservation payée et confirmée
+        return bookingRepository.countByTenantIdAndStatusIn(
+                clientId,
+                Arrays.asList(BookingStatus.CONFIRMED) // Pas ONGOING!
+        );
     }
 }

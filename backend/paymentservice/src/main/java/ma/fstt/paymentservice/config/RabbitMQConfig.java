@@ -76,21 +76,29 @@ public class RabbitMQConfig {
     /**
      * Queue pour les paiements confirmés
      * Durable: true (survit aux redémarrages RabbitMQ)
+     *
+     * ✅ FIX: Ajout du DLX pour matcher BookingService
      */
     @Bean
     public Queue paymentConfirmedQueue() {
         return QueueBuilder.durable("payment.confirmed.queue")
                 .withArgument("x-message-ttl", 86400000) // 24h TTL
+                .withArgument("x-dead-letter-exchange", "rental.dlx")  // ✅ AJOUTÉ !
+                .withArgument("x-dead-letter-routing-key", "payment.confirmed.dead")  // ✅ AJOUTÉ !
                 .build();
     }
 
     /**
      * Queue pour les paiements échoués
+     *
+     * ✅ FIX: Ajout du DLX pour matcher BookingService
      */
     @Bean
     public Queue paymentFailedQueue() {
         return QueueBuilder.durable("payment.failed.queue")
                 .withArgument("x-message-ttl", 86400000) // 24h TTL
+                .withArgument("x-dead-letter-exchange", "rental.dlx")  // ✅ AJOUTÉ !
+                .withArgument("x-dead-letter-routing-key", "payment.failed.dead")  // ✅ AJOUTÉ !
                 .build();
     }
 

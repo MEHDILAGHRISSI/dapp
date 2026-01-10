@@ -39,4 +39,5 @@ public interface PropertyService {
 
 
     Long countPropertiesByOwner(String ownerId);
+    public Long countActivePropertiesByOwner(String ownerId) ;
 }

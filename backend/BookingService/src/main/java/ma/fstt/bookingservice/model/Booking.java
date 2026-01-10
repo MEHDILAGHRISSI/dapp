@@ -10,8 +10,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "bookings")
-@Getter
+@Table(
+        name = "bookings",
+        indexes = {
+                @Index(name = "idx_status_created", columnList = "status, createdAt")  // ✅ AJOUTER
+        }
+)@Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor

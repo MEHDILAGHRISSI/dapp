@@ -9,7 +9,7 @@ import lombok.*;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WalletStatusDTO {
-    private Long userId;
+    private String userId;    // ✅ FIX: String UUID
     private String walletAddress;
     private Boolean exists;
 }

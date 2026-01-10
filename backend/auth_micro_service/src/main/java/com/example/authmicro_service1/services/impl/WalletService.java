@@ -34,7 +34,7 @@ public class WalletService {
 
     // URLs des autres microservices (à configurer dans application.properties)
     private static final String LISTING_SERVICE_URL = "http://listing-service:8081";
-    private static final String BOOKING_SERVICE_URL = "http://booking-service:8082";
+    private static final String BOOKING_SERVICE_URL = "http://booking-service:8083";
 
     /**
      * 🔌 Connecter un wallet à un utilisateur

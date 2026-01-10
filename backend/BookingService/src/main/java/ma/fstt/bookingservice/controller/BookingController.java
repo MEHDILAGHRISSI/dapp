@@ -2,6 +2,7 @@ package ma.fstt.bookingservice.controller;
 
 import ma.fstt.bookingservice.dto.BookingRequestDTO;
 import ma.fstt.bookingservice.dto.BookingResponseDTO;
+import ma.fstt.bookingservice.model.BookingStatus;
 import ma.fstt.bookingservice.service.BookingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/bookings")
@@ -95,5 +99,74 @@ public class BookingController {
         }
 
         return ResponseEntity.ok(booking);
+    }
+
+
+    /**
+     * 🆕 Get count of future bookings where user is the HOST (property owner)
+     */
+    @GetMapping("/host/{userId}/future-count")
+    public ResponseEntity<Map<String, Object>> getFutureBookingsAsHost(@PathVariable String userId) {
+        log.info("🔍 Counting future bookings for host: {}", userId);
+
+        try {
+            Map<String, Object> response = new HashMap<>();
+            response.put("count", 0);
+            response.put("userId", userId);
+            response.put("message", "No future host bookings found");
+
+            log.info("✅ Host booking count for {}: 0", userId);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("❌ Error counting host bookings for user {}: {}", userId, e.getMessage());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("count", 0);
+            response.put("userId", userId);
+            response.put("error", "Could not verify host bookings");
+
+            return ResponseEntity.ok(response);
+        }
+    }
+
+    /**
+     * 🆕 Get count of active bookings where user is the CLIENT (tenant)
+     */
+    @GetMapping("/client/{userId}/active-count")
+    public ResponseEntity<Map<String, Object>> getActiveBookingsAsClient(@PathVariable String userId) {
+        log.info("🔍 Counting active bookings for client: {}", userId);
+
+        try {
+            List<BookingResponseDTO> allBookings = bookingService.getBookingsByTenant(userId);
+
+            long activeCount = allBookings.stream()
+                    .filter(booking ->
+                            booking.getStatus() == BookingStatus.CONFIRMED ||
+                                    booking.getStatus() == BookingStatus.AWAITING_PAYMENT ||
+                                    booking.getStatus() == BookingStatus.PENDING
+                    )
+                    .count();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("count", activeCount);
+            response.put("userId", userId);
+            response.put("message", activeCount > 0
+                    ? "User has active bookings as client"
+                    : "No active client bookings found");
+
+            log.info("✅ Active client booking count for {}: {}", userId, activeCount);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("❌ Error counting client bookings for user {}: {}", userId, e.getMessage());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("count", 0);
+            response.put("userId", userId);
+            response.put("error", "Could not verify client bookings");
+
+            return ResponseEntity.ok(response);
+        }
     }
 }

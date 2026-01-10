@@ -284,4 +284,19 @@ public class PropertyServiceImpl implements PropertyService {
 
         return dto;
     }
+
+
+    @Override
+    public Long countActivePropertiesByOwner(String ownerId) {
+        // Vérifier que le propriétaire existe
+        if (!ownerRepository.existsByUserId(ownerId)) {
+            System.err.println("⚠️ Propriétaire non trouvé: " + ownerId);
+            return 0L; // Retourner 0 si le propriétaire n'existe pas
+        }
+
+        // Compter les propriétés actives
+        Long count = propertyRepository.countByOwnerUserIdAndIsHiddenFalseAndIsDraftFalseAndIsValidatedTrue(ownerId);
+        System.out.println("✅ Propriétés actives pour " + ownerId + ": " + count);
+        return count;
+    }
 }

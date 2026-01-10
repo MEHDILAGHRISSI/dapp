@@ -24,6 +24,51 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routing-key.expired:booking.expired}")
     private String expiredRoutingKey;
 
+
+    // Exchange pour les événements utilisateur
+    public static final String USER_EXCHANGE = "user.exchange";
+
+    // Queues pour la synchronisation des utilisateurs
+    public static final String USER_CREATED_QUEUE = "user.created.queue";
+    public static final String USER_UPDATED_QUEUE = "user.updated.queue";
+
+    // Routing keys
+    public static final String USER_CREATED_ROUTING_KEY = "user.created";
+    public static final String USER_UPDATED_ROUTING_KEY = "user.updated";
+
+
+    @Bean
+    public TopicExchange userExchange() {
+        return new TopicExchange(USER_EXCHANGE);
+    }
+
+    @Bean
+    public Queue userCreatedQueue() {
+        return new Queue(USER_CREATED_QUEUE, true); // durable = true
+    }
+
+    @Bean
+    public Queue userUpdatedQueue() {
+        return new Queue(USER_UPDATED_QUEUE, true);
+    }
+
+    @Bean
+    public Binding userCreatedBinding() {
+        return BindingBuilder
+                .bind(userCreatedQueue())
+                .to(userExchange())
+                .with(USER_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userUpdatedBinding() {
+        return BindingBuilder
+                .bind(userUpdatedQueue())
+                .to(userExchange())
+                .with(USER_UPDATED_ROUTING_KEY);
+    }
+
+
     // ========== EXCHANGES ==========
 
     @Bean
@@ -116,5 +161,54 @@ public class RabbitMQConfig {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(jsonMessageConverter());
         return template;
+    }
+
+    // ========== PAYMENT QUEUES ==========
+    // ✅ CETTE SECTION EST DÉJÀ BONNE !
+    // Elle déclare les queues avec le DLX correctement
+
+    public static final String PAYMENT_EXCHANGE = "payment.exchange";
+    public static final String PAYMENT_CONFIRMED_QUEUE = "payment.confirmed.queue";
+    public static final String PAYMENT_FAILED_QUEUE = "payment.failed.queue";
+    public static final String PAYMENT_CONFIRMED_ROUTING_KEY = "payment.confirmed";
+    public static final String PAYMENT_FAILED_ROUTING_KEY = "payment.failed";
+
+    @Bean
+    public TopicExchange paymentExchange() {
+        return new TopicExchange(PAYMENT_EXCHANGE);
+    }
+
+    @Bean
+    public Queue paymentConfirmedQueue() {
+        return QueueBuilder.durable(PAYMENT_CONFIRMED_QUEUE)
+                .withArgument("x-dead-letter-exchange", "rental.dlx")
+                .withArgument("x-dead-letter-routing-key", "payment.confirmed.dead")
+                .withArgument("x-message-ttl", 86400000)  // ✅ 24h TTL
+                .build();
+    }
+
+    @Bean
+    public Queue paymentFailedQueue() {
+        return QueueBuilder.durable(PAYMENT_FAILED_QUEUE)
+                .withArgument("x-dead-letter-exchange", "rental.dlx")
+                .withArgument("x-dead-letter-routing-key", "payment.failed.dead")
+                .withArgument("x-message-ttl", 86400000)  // ✅ 24h TTL
+                .build();
+    }
+
+    @Bean
+    public Binding paymentConfirmedBinding() {
+        return BindingBuilder
+                .bind(paymentConfirmedQueue())
+                .to(paymentExchange())
+                .with(PAYMENT_CONFIRMED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding paymentFailedBinding() {
+        return BindingBuilder
+                .bind(paymentFailedQueue())
+                .to(paymentExchange())
+                .with(PAYMENT_FAILED_ROUTING_KEY);
     }
 }
