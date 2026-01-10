@@ -14,17 +14,30 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    // ✅ UTILISER LES MÊMES NOMS QUE LE LISTING SERVICE
+    // Exchange principal
     public static final String EXCHANGE_NAME = "user.exchange";
+
+    // ✅ Queues et routing keys existantes
     public static final String USER_CREATED_QUEUE = "user.created.queue";
     public static final String USER_UPDATED_QUEUE = "user.updated.queue";
     public static final String USER_CREATED_ROUTING_KEY = "user.created";
     public static final String USER_UPDATED_ROUTING_KEY = "user.updated";
 
+    // ✅ NOUVELLES QUEUES pour les événements wallet
+    public static final String WALLET_CONNECTED_QUEUE = "user.wallet.connected.queue";
+    public static final String WALLET_UPDATED_QUEUE = "user.wallet.updated.queue";
+    public static final String WALLET_DISCONNECTED_QUEUE = "user.wallet.disconnected.queue";
+
+    public static final String WALLET_CONNECTED_ROUTING_KEY = "user.wallet.connected";
+    public static final String WALLET_UPDATED_ROUTING_KEY = "user.wallet.updated";
+    public static final String WALLET_DISCONNECTED_ROUTING_KEY = "user.wallet.disconnected";
+
     @Bean
     public TopicExchange userExchange() {
         return new TopicExchange(EXCHANGE_NAME);
     }
+
+    // ========== QUEUES EXISTANTES ==========
 
     @Bean
     public Queue userCreatedQueue() {
@@ -49,6 +62,58 @@ public class RabbitMQConfig {
                 .to(userExchange)
                 .with(USER_UPDATED_ROUTING_KEY);
     }
+
+    // ========== NOUVELLES QUEUES WALLET ==========
+
+    /**
+     * ✅ Queue pour les événements de connexion de wallet
+     * Écoutée par: Listing Service, Booking Service, Payment Service
+     */
+    @Bean
+    public Queue walletConnectedQueue() {
+        return new Queue(WALLET_CONNECTED_QUEUE, true);
+    }
+
+    @Bean
+    public Binding walletConnectedBinding(Queue walletConnectedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(walletConnectedQueue)
+                .to(userExchange)
+                .with(WALLET_CONNECTED_ROUTING_KEY);
+    }
+
+    /**
+     * ✅ Queue pour les événements de mise à jour de wallet
+     * Écoutée par: Listing Service, Booking Service, Payment Service
+     */
+    @Bean
+    public Queue walletUpdatedQueue() {
+        return new Queue(WALLET_UPDATED_QUEUE, true);
+    }
+
+    @Bean
+    public Binding walletUpdatedBinding(Queue walletUpdatedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(walletUpdatedQueue)
+                .to(userExchange)
+                .with(WALLET_UPDATED_ROUTING_KEY);
+    }
+
+    /**
+     * ✅ Queue pour les événements de déconnexion de wallet
+     * Écoutée par: Listing Service, Booking Service, Payment Service
+     */
+    @Bean
+    public Queue walletDisconnectedQueue() {
+        return new Queue(WALLET_DISCONNECTED_QUEUE, true);
+    }
+
+    @Bean
+    public Binding walletDisconnectedBinding(Queue walletDisconnectedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(walletDisconnectedQueue)
+                .to(userExchange)
+                .with(WALLET_DISCONNECTED_ROUTING_KEY);
+    }
+
+    // ========== CONFIGURATION GÉNÉRALE ==========
 
     @Bean
     public MessageConverter jsonMessageConverter() {

@@ -21,7 +21,6 @@ public class WebSecurity {
     private final PasswordEncoder bCryptPasswordEncoder;
     private final AuthenticationConfiguration authenticationConfiguration;
 
-
     public WebSecurity(UserDetailsService userService,
                        PasswordEncoder bCryptPasswordEncoder,
                        AuthenticationConfiguration authenticationConfiguration) {
@@ -39,23 +38,35 @@ public class WebSecurity {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // ✅ Endpoints publics (pas d'authentification requise)
                         .requestMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll()
                         .requestMatchers("/users").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
-                        .requestMatchers("/users/verify-otp", "/users/resend-otp", "/users/forgot-password", "/users/reset-password").permitAll()
+                        .requestMatchers("/users/verify-otp", "/users/resend-otp",
+                                "/users/forgot-password", "/users/reset-password").permitAll()
                         .requestMatchers("/error").permitAll()
+
+                        // ✅ NOUVEAUX ENDPOINTS WALLET - Authentification requise
+                        .requestMatchers(HttpMethod.POST, "/users/*/wallet/connect").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/users/*/wallet/disconnect").authenticated()
+
+                        // ✅ Endpoint wallet/status - Accessible par d'autres services (via API Gateway)
+                        // En production, à sécuriser avec un API key ou JWT service-to-service
+                        .requestMatchers(HttpMethod.GET, "/users/*/wallet/status").permitAll()
+
+                        // Tous les autres endpoints nécessitent une authentification
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilter(authenticationFilter)
-                .addFilterBefore(authorizationFilter, AuthenticationFilter.class); // Ordre critique !
+                .addFilterBefore(authorizationFilter, AuthenticationFilter.class);
 
         return http.build();
     }
 
     private AuthenticationFilter getAuthenticationFilter(AuthenticationManager authenticationManager) {
         AuthenticationFilter filter = new AuthenticationFilter(authenticationManager);
-        filter.setFilterProcessesUrl("/users/login"); // login endpoint
+        filter.setFilterProcessesUrl("/users/login");
         return filter;
     }
 

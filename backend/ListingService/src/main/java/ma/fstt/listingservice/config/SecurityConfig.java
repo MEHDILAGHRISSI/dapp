@@ -14,21 +14,39 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ✅ Nouvelle syntaxe lambda pour CSRF
-                .csrf(csrf -> csrf.disable())  // Désactivé car API REST
+                // ✅ Désactiver CSRF pour API REST
+                .csrf(csrf -> csrf.disable())
 
-                // ✅ Nouvelle syntaxe lambda pour les autorisations
+                // ✅ Configuration des autorisations
                 .authorizeHttpRequests(auth -> auth
-                        // Endpoints publics (lecture seule)
-                        .requestMatchers("/properties/*/public").permitAll()
-                        .requestMatchers("/properties/search").permitAll()
+                        // ========== ROUTES PUBLIQUES (Pas d'authentification) ==========
 
-                        // Tous les autres requièrent authentification
+                        // Properties - Lecture publique
+                        .requestMatchers("/properties").permitAll()                    // GET all properties
+                        .requestMatchers("/properties/{id}").permitAll()               // GET property by ID
+                        .requestMatchers("/properties/{id}/public").permitAll()        // GET public details
+                        .requestMatchers("/properties/search").permitAll()             // Search properties
+                        .requestMatchers("/properties/nearby").permitAll()             // Nearby properties
+                        .requestMatchers("/properties/owner/{ownerId}/active-count").permitAll() // Active count
+
+                        // Characteristics - Lecture publique
+                        .requestMatchers("/characteristics").permitAll()               // GET all characteristics
+                        .requestMatchers("/characteristics/{id}").permitAll()          // GET characteristic by ID
+
+                        // Type Caracteristiques - Lecture publique
+                        .requestMatchers("/type-caracteristiques").permitAll()         // GET all types
+                        .requestMatchers("/type-caracteristiques/{id}").permitAll()    // GET type by ID
+
+                        // Owners - Vérification publique
+                        .requestMatchers("/owners/check/{userId}").permitAll()         // Check owner status
+
+                        // ========== ROUTES PROTÉGÉES (Authentification JWT requise) ==========
+                        // Toutes les autres routes nécessitent authentification
                         .anyRequest().authenticated()
                 )
 
-                // ✅ Nouvelle syntaxe lambda pour HTTP Basic
-                .httpBasic(basic -> {})  // Basic auth pour service-to-service
+                // ✅ Désactiver HTTP Basic (pas besoin pour service-to-service via Gateway)
+                .httpBasic(basic -> basic.disable())
 
                 // ✅ Session stateless pour API REST
                 .sessionManagement(session ->
