@@ -236,43 +236,7 @@ public class UserController {
         }
     }
 
-    /**
-     * ✅ ENDPOINT CORRIGÉ : Récupérer le statut du wallet d'un utilisateur
-     * Utilisé par BookingService pour récupérer automatiquement le wallet
-     *
-     * GET /users/{userId}/wallet/status
-     *
-     * @param userId ID de l'utilisateur (String UUID - pas Long!)
-     * @return Status du wallet avec adresse et existence
-     */
-    @GetMapping("/{userId}/wallet/status")
-    public ResponseEntity<?> getWalletStatus(@PathVariable String userId) {
-        try {
-            // ✅ CORRECTION : findByUserId() attend un String (UUID)
-            UserEntity userEntity = userRepository.findByUserId(userId);
 
-            if (userEntity == null) {
-                Map<String, String> errorResponse = new HashMap<>();
-                errorResponse.put("message", "User not found");
-                errorResponse.put("status", "error");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("userId", userEntity.getId());
-            response.put("walletAddress", userEntity.getWalletAddress());
-            response.put("exists", userEntity.getWalletAddress() != null &&
-                    !userEntity.getWalletAddress().trim().isEmpty());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "Internal error: " + e.getMessage());
-            errorResponse.put("status", "error");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
-    }
     /**
      * Créer un agent (ADMIN uniquement)
      * POST /users/admin/agents
