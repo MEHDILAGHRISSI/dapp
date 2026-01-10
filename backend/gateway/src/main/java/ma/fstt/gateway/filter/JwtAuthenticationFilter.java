@@ -25,10 +25,9 @@ public class JwtAuthenticationFilter implements GatewayFilter {
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
 
-    // 🚀 Définir les routes publiques (signup, login, reset, etc.)
     private static final List<String> PUBLIC_ENDPOINTS = List.of(
-            "/api/auth/users",          // signup
-            "/api/auth/users/login",    // login
+            "/api/auth/users",
+            "/api/auth/users/login",
             "/api/auth/users/verify-otp",
             "/api/auth/users/resend-otp",
             "/api/auth/users/forgot-password",
@@ -40,17 +39,14 @@ public class JwtAuthenticationFilter implements GatewayFilter {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
-        // 🔓 Ignorer le filtre pour les routes publiques
         if (PUBLIC_ENDPOINTS.stream().anyMatch(path::startsWith)) {
             return chain.filter(exchange);
         }
 
-        // Vérifier si le header Authorization existe
         if (!request.getHeaders().containsKey(AUTHORIZATION_HEADER)) {
             return onError(exchange, "Token d'autorisation manquant", HttpStatus.UNAUTHORIZED);
         }
 
-        // Extraire le token
         String authHeader = request.getHeaders().getFirst(AUTHORIZATION_HEADER);
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
             return onError(exchange, "Format du token invalide. Utilisez 'Bearer <token>'", HttpStatus.UNAUTHORIZED);
@@ -58,23 +54,20 @@ public class JwtAuthenticationFilter implements GatewayFilter {
 
         String token = authHeader.substring(BEARER_PREFIX.length());
 
-        // ✅ Valider le token avec gestion des exceptions spécifiques
         try {
-            // Validation complète du token
             if (!jwtUtil.validateToken(token)) {
                 return onError(exchange, "Token expiré ou invalide", HttpStatus.UNAUTHORIZED);
             }
 
-            // Extraire les informations du token
-            String userIdStr = jwtUtil.getUserIdFromToken(token);
-            Long userId = Long.parseLong(userIdStr);
+            // ✅ FIX: userId est un String UUID, pas un Long !
+            String userId = jwtUtil.getUserIdFromToken(token);
             String username = jwtUtil.getUsernameFromToken(token);
             List<String> roles = jwtUtil.getRolesFromToken(token);
             List<String> types = jwtUtil.getTypesFromToken(token);
 
-            // Ajouter les informations de l'utilisateur dans les headers pour les microservices
+            // Ajouter les informations dans les headers
             ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
-                    .header("X-User-Id", String.valueOf(userId))
+                    .header("X-User-Id", userId)  // ✅ String, pas Long
                     .header("X-Username", username)
                     .header("X-User-Roles", String.join(",", roles))
                     .header("X-User-Types", String.join(",", types))
@@ -101,7 +94,7 @@ public class JwtAuthenticationFilter implements GatewayFilter {
 
         } catch (SignatureException e) {
             System.err.println("❌ Signature invalide: " + e.getMessage());
-            return onError(exchange, "Signature du token invalide. Possible tentative de falsification", HttpStatus.UNAUTHORIZED);
+            return onError(exchange, "Signature du token invalide", HttpStatus.UNAUTHORIZED);
 
         } catch (IllegalArgumentException e) {
             System.err.println("❌ Argument invalide: " + e.getMessage());
@@ -112,15 +105,12 @@ public class JwtAuthenticationFilter implements GatewayFilter {
             return onError(exchange, "Erreur lors du traitement du token", HttpStatus.UNAUTHORIZED);
 
         } catch (Exception e) {
-            System.err.println("❌ Erreur inattendue lors de la validation du token: " + e.getMessage());
+            System.err.println("❌ Erreur inattendue: " + e.getMessage());
             e.printStackTrace();
             return onError(exchange, "Erreur interne lors de la validation", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    /**
-     * Gestion des erreurs avec réponse JSON formatée
-     */
     private Mono<Void> onError(ServerWebExchange exchange, String message, HttpStatus httpStatus) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(httpStatus);

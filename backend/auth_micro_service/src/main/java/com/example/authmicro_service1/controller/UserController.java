@@ -16,6 +16,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
+import com.example.authmicro_service1.entities.UserRole;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -267,4 +273,117 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+    /**
+     * Créer un agent (ADMIN uniquement)
+     * POST /users/admin/agents
+     */
+    @PostMapping("/admin/agents")
+    public ResponseEntity<?> createAgent(@RequestBody UserRequest agentRequest) {
+        try {
+            UserDto agentDto = new UserDto();
+            BeanUtils.copyProperties(agentRequest, agentDto);
+
+            // ✅ Forcer le rôle AGENT
+            Set<UserRole> roles = new HashSet<>();
+            roles.add(UserRole.AGENT);
+            agentDto.setRoles(roles);
+
+            // Si pas de types fournis, ajouter CLIENT par défaut
+            if (agentDto.getTypes() == null || agentDto.getTypes().isEmpty()) {
+                Set<com.example.authmicro_service1.entities.UserType> types = new HashSet<>();
+                types.add(com.example.authmicro_service1.entities.UserType.CLIENT);
+                agentDto.setTypes(types);
+            }
+
+            UserDto createdAgent = userService.createUser(agentDto);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Agent créé avec succès.");
+            response.put("agentId", createdAgent.getUserId());
+            response.put("email", createdAgent.getEmail());
+            response.put("roles", createdAgent.getRoles());
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Erreur lors de la création de l'agent: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
+
+    /**
+     * Récupérer tous les agents (ADMIN uniquement)
+     * GET /users/admin/agents
+     */
+    @GetMapping("/admin/agents")
+    public ResponseEntity<?> getAllAgents() {
+        try {
+            // ✅ Récupérer tous les utilisateurs avec le rôle AGENT
+            List<UserEntity> agents = userRepository.findByRolesContaining(UserRole.AGENT);
+
+            List<Map<String, Object>> agentsList = agents.stream().map(agent -> {
+                Map<String, Object> agentMap = new HashMap<>();
+                agentMap.put("userId", agent.getUserId());
+                agentMap.put("email", agent.getEmail());
+                agentMap.put("firstname", agent.getFirstname());
+                agentMap.put("lastname", agent.getLastname());
+                agentMap.put("phone", agent.getPhone());
+                agentMap.put("roles", agent.getRoles());
+                agentMap.put("types", agent.getTypes());
+                agentMap.put("emailVerificationStatus", agent.getEmailVerficationStatus());
+                return agentMap;
+            }).collect(java.util.stream.Collectors.toList());
+
+            return ResponseEntity.ok(agentsList);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Erreur lors de la récupération des agents: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * Supprimer un agent (ADMIN uniquement)
+     * DELETE /users/admin/agents/{agentId}
+     */
+    @DeleteMapping("/admin/agents/{agentId}")
+    public ResponseEntity<?> deleteAgent(@PathVariable String agentId) {
+        try {
+            // Vérifier que l'utilisateur existe et est bien un agent
+            UserEntity agent = userRepository.findByUserId(agentId);
+
+            if (agent == null) {
+                Map<String, String> errorResponse = new HashMap<>();
+                errorResponse.put("message", "Agent non trouvé.");
+                errorResponse.put("status", "error");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+
+            // Vérifier que l'utilisateur a le rôle AGENT
+            if (agent.getRoles() == null || !agent.getRoles().contains(UserRole.AGENT)) {
+                Map<String, String> errorResponse = new HashMap<>();
+                errorResponse.put("message", "Cet utilisateur n'est pas un agent.");
+                errorResponse.put("status", "error");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+
+            // Supprimer l'agent
+            userRepository.delete(agent);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Agent supprimé avec succès.");
+            response.put("agentId", agentId);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Erreur lors de la suppression de l'agent: " + e.getMessage());
+            errorResponse.put("status", "error");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+
 }

@@ -39,10 +39,10 @@
 | **Gateway Health** | `http://localhost:8082/health` |
 
 **Ports des Services (INTERNES UNIQUEMENT - Ne pas utiliser) :**
-- Auth Service: Port 8080 (accessible uniquement entre conteneurs Docker)
-- Listing Service: Port 8081 (accessible uniquement entre conteneurs Docker)
-- Booking Service: Port 8083 (accessible uniquement entre conteneurs Docker)
-- Payment Service: Port 8084 (accessible uniquement entre conteneurs Docker)
+- Auth Service: Port 8080 - Interne (accessible uniquement entre conteneurs Docker)
+- Listing Service: Port 8081 - Interne (accessible uniquement entre conteneurs Docker)
+- Booking Service: Port 8083 - Interne (accessible uniquement entre conteneurs Docker)
+- Payment Service: Port 8084 - Interne (accessible uniquement entre conteneurs Docker)
 
 **✅ À utiliser :** `http://localhost:8082` (Gateway)
 **❌ Ne PAS utiliser :** `http://localhost:8080`, `8081`, `8083`, `8084` (services internes)
@@ -95,8 +95,8 @@ Toutes les réponses sont au format JSON:
           ▼              ▼               ▼              ▼
 ┌──────────────┐  ┌──────────────┐  ┌──────────┐  ┌──────────┐
 │ Auth Service │  │   Listing    │  │ Booking  │  │ Payment  │
-│  Port 8080   │  │   Service    │  │ Service  │  │ Service  │
-│              │  │  Port 8081   │  │Port 8083 │  │Port 8084 │
+│  Port 8080 - Interne   │  │   Service    │  │ Service  │  │ Service  │
+│              │  │  Port 8081 - Interne   │  │Port 8083 - Interne │  │Port 8084 - Interne │
 │ ❌ No CORS   │  │  ❌ No CORS  │  │❌ No CORS│  │❌ No CORS│
 └──────────────┘  └──────────────┘  └──────────┘  └──────────┘
                          │                   │
@@ -156,7 +156,7 @@ Password: Admin@123
 
 ---
 
-## 🔑 Auth Service (Port 8080)
+## 🔑 Auth Service (Port 8080 - Interne)
 **Base URL (via Gateway OBLIGATOIRE):** `http://localhost:8082/api/auth`
 
 ### 📊 Résumé des Endpoints
@@ -220,7 +220,7 @@ Content-Type: application/json
   "firstname": "Alice",
   "lastname": "Dupont",
   "email": "alice.dupont@example.com",
-  "emailVerficationStatus": false,
+  "emailVerificationStatus": false,
   "types": ["CLIENT", "OWNER"],
   "roles": ["USER"]
 }
@@ -313,7 +313,7 @@ X-User-Id: {userId}
   "country": "France",
   "zipCode": "75001",
   "dateOfBirth": "1990-05-15",
-  "emailVerficationStatus": true,
+  "emailVerificationStatus": true,
   "walletAddress": "0x1234567890123456789012345678901234567890",
   "types": ["CLIENT", "OWNER"],
   "roles": ["USER"],
@@ -731,7 +731,7 @@ X-User-Id: {userId}
 
 ---
 
-## 🏠 Listing Service (Port 8081)
+## 🏠 Listing Service (Port 8081 - Interne)
 **Base URL (via Gateway OBLIGATOIRE):** `http://localhost:8082/api/listings`
 
 ### 📊 Résumé des Endpoints
@@ -1762,7 +1762,7 @@ X-User-Id: {userId}
 
 ---
 
-## 📅 Booking Service (Port 8083)
+## 📅 Booking Service (Port 8083 - Interne)
 **Base URL (via Gateway OBLIGATOIRE):** `http://localhost:8082/api/bookings`
 
 ### 📊 Résumé des Endpoints
@@ -1998,7 +1998,7 @@ Content-Type: application/json
 
 ---
 
-## 💳 Payment Service (Port 8084)
+## 💳 Payment Service (Port 8084 - Interne)
 **Base URL (via Gateway OBLIGATOIRE):** `http://localhost:8082/api/payments`
 
 ### 📊 Résumé des Endpoints

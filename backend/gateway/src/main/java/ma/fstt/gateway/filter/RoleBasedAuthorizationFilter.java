@@ -1,7 +1,6 @@
 package ma.fstt.gateway.filter;
 
-
-
+import io.jsonwebtoken.Claims;
 import ma.fstt.gateway.util.JwtUtil;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -34,26 +33,53 @@ public class RoleBasedAuthorizationFilter implements GatewayFilter {
         // Extraire le token
         String authHeader = request.getHeaders().getFirst("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            System.err.println("❌ RoleBasedAuthorizationFilter: Token manquant");
             return onError(exchange, "Token manquant", HttpStatus.UNAUTHORIZED);
         }
 
         String token = authHeader.substring(7);
 
         try {
-            // Vérifier si l'utilisateur a au moins un des rôles requis
+            // Valider le token
+            if (!jwtUtil.validateToken(token)) {
+                System.err.println("❌ RoleBasedAuthorizationFilter: Token invalide");
+                return onError(exchange, "Token invalide", HttpStatus.UNAUTHORIZED);
+            }
+
+            // ✅ Extraire les rôles du token
+            Claims claims = jwtUtil.getAllClaims(token);  // ✅ getAllClaims au lieu de extractAllClaims
+            Object rolesObj = claims.get("roles");
+
+            if (rolesObj == null) {
+                System.err.println("❌ RoleBasedAuthorizationFilter: Aucun rôle trouvé dans le JWT");
+                System.err.println("📋 Claims disponibles: " + claims.keySet());
+                return onError(exchange, "Aucun rôle trouvé dans le token", HttpStatus.FORBIDDEN);
+            }
+
+            // Convertir en liste
+            List<String> userRoles;
+            if (rolesObj instanceof List) {
+                userRoles = (List<String>) rolesObj;
+            } else {
+                System.err.println("❌ RoleBasedAuthorizationFilter: 'roles' n'est pas une liste");
+                return onError(exchange, "Format de rôles invalide", HttpStatus.FORBIDDEN);
+            }
+
+            // ✅ Vérifier si l'utilisateur a au moins un des rôles requis
             boolean hasRequiredRole = requiredRoles.stream()
-                    .anyMatch(role -> jwtUtil.hasRole(token, role));
+                    .anyMatch(userRoles::contains);
 
             if (!hasRequiredRole) {
-                System.err.println("❌ Accès refusé - Rôles requis: " + requiredRoles);
+                System.err.println("❌ Accès refusé - Rôles requis: " + requiredRoles + " | Rôles utilisateur: " + userRoles);
                 return onError(exchange, "Accès refusé - Rôle insuffisant", HttpStatus.FORBIDDEN);
             }
 
-            System.out.println("✅ Autorisation accordée pour les rôles: " + requiredRoles);
+            System.out.println("✅ Autorisation accordée - Rôles requis: " + requiredRoles + " | Rôles utilisateur: " + userRoles);
             return chain.filter(exchange);
 
         } catch (Exception e) {
             System.err.println("❌ Erreur lors de la vérification des rôles: " + e.getMessage());
+            e.printStackTrace();
             return onError(exchange, "Erreur d'autorisation", HttpStatus.FORBIDDEN);
         }
     }
@@ -61,7 +87,7 @@ public class RoleBasedAuthorizationFilter implements GatewayFilter {
     private Mono<Void> onError(ServerWebExchange exchange, String message, HttpStatus httpStatus) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(httpStatus);
-        System.err.println("❌ " + message);
+        System.err.println("❌ RoleBasedAuthorizationFilter: " + message);
         return response.setComplete();
     }
 }
