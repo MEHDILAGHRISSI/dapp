@@ -75,7 +75,19 @@ public class RoleBasedAuthorizationFilter implements GatewayFilter {
             }
 
             System.out.println("✅ Autorisation accordée - Rôles requis: " + requiredRoles + " | Rôles utilisateur: " + userRoles);
-            return chain.filter(exchange);
+
+            // ✅ CRITIQUE: Injecter le header X-Roles dans la requête
+            // Les services backend ont besoin de ce header pour leurs contrôles d'autorisation
+            String rolesString = String.join(",", userRoles);
+
+            ServerWebExchange mutatedExchange = exchange.mutate()
+                    .request(builder -> builder.header("X-Roles", rolesString))
+                    .build();
+
+            System.out.println("✅ Header X-Roles injecté: " + rolesString);
+
+            // Transmettre la requête MODIFIÉE avec le header X-Roles
+            return chain.filter(mutatedExchange);
 
         } catch (Exception e) {
             System.err.println("❌ Erreur lors de la vérification des rôles: " + e.getMessage());

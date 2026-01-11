@@ -1,5 +1,6 @@
 package ma.fstt.listingservice.dto;
 
+import ma.fstt.listingservice.entities.PropertyStatus;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -12,7 +13,7 @@ public class PropertyDto implements Serializable {
 
     private Long id;
     private String propertyId;
-    private String userId;
+    private String userId; // OwnerId
     private String title;
     private String type;
 
@@ -37,20 +38,55 @@ public class PropertyDto implements Serializable {
     // Images
     private List<String> imageFolderPath = new ArrayList<>();
 
-    // Status
-    private Boolean isHidden;
-    private Boolean isDraft;
-    private Boolean isDeleted;
-    private Boolean isValidated;
+    // ✅ NOUVEAU: Status ENUM (UNIQUEMENT)
+    private PropertyStatus status;
 
     // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime lastUpdateAt;
 
-    // Characteristics (One-to-Many)
+    // Characteristics
     private List<CharacteristicDto> characteristics = new ArrayList<>();
 
-    // Getters and Setters
+    // ========== MÉTHODES HELPER (BUSINESS LOGIC) ==========
+
+    /**
+     * Vérifier si property est réservable
+     */
+    public boolean isReservable() {
+        return status == PropertyStatus.ACTIVE;
+    }
+
+    /**
+     * Vérifier si property est visible (pour owner)
+     */
+    public boolean isVisible() {
+        return status == PropertyStatus.ACTIVE || status == PropertyStatus.HIDDEN;
+    }
+
+    /**
+     * Vérifier si property peut être éditée
+     */
+    public boolean canBeEdited() {
+        return status == PropertyStatus.DRAFT || status == PropertyStatus.PENDING;
+    }
+
+    /**
+     * Vérifier si property est en attente de validation
+     */
+    public boolean isPending() {
+        return status == PropertyStatus.PENDING;
+    }
+
+    /**
+     * Vérifier si property est supprimée
+     */
+    public boolean isDeleted() {
+        return status == PropertyStatus.DELETED;
+    }
+
+    // ========== GETTERS ET SETTERS ==========
+
     public Long getId() {
         return id;
     }
@@ -195,36 +231,12 @@ public class PropertyDto implements Serializable {
         this.imageFolderPath = imageFolderPath;
     }
 
-    public Boolean getIsHidden() {
-        return isHidden;
+    public PropertyStatus getStatus() {
+        return status;
     }
 
-    public void setIsHidden(Boolean isHidden) {
-        this.isHidden = isHidden;
-    }
-
-    public Boolean getIsDraft() {
-        return isDraft;
-    }
-
-    public void setIsDraft(Boolean isDraft) {
-        this.isDraft = isDraft;
-    }
-
-    public Boolean getIsDeleted() {
-        return isDeleted;
-    }
-
-    public void setIsDeleted(Boolean isDeleted) {
-        this.isDeleted = isDeleted;
-    }
-
-    public Boolean getIsValidated() {
-        return isValidated;
-    }
-
-    public void setIsValidated(Boolean isValidated) {
-        this.isValidated = isValidated;
+    public void setStatus(PropertyStatus status) {
+        this.status = status;
     }
 
     public LocalDateTime getCreatedAt() {

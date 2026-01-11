@@ -1,5 +1,7 @@
 package ma.fstt.listingservice.requests;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import ma.fstt.listingservice.dto.CharacteristicDto;
 
 import java.math.BigDecimal;
@@ -18,6 +20,10 @@ public class PropertyRequest {
     private String country;
     private String state;
     private String codePostale;
+
+    @NotBlank(message = "Description is required")
+    @Size(min = 50, max = 2000, message = "Description must be between 50 and 2000 characters")
+    private String description;
 
     // Pricing
     private BigDecimal pricePerNight;
@@ -170,5 +176,13 @@ public class PropertyRequest {
 
     public void setCharacteristics(List<CharacteristicDto> characteristics) {
         this.characteristics = characteristics;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

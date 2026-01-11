@@ -14,6 +14,10 @@ public class RabbitMQConfig {
     // Exchange
     public static final String USER_EXCHANGE = "user.exchange";
 
+    // ========== NOUVELLE QUEUE USER TYPE UPGRADED ==========
+    public static final String USER_TYPE_UPGRADED_QUEUE = "user.type.upgraded.queue";
+    public static final String USER_TYPE_UPGRADED_ROUTING_KEY = "user.type.upgraded";
+
     // ========== QUEUES EXISTANTES ==========
     public static final String USER_CREATED_QUEUE = "user.created.queue";
     public static final String USER_UPDATED_QUEUE = "user.updated.queue";
@@ -45,6 +49,11 @@ public class RabbitMQConfig {
     @Bean
     public Queue userUpdatedQueue() {
         return new Queue(USER_UPDATED_QUEUE, true);
+    }
+
+    @Bean
+    public Queue userTypeUpgradedQueue() {
+        return new Queue(USER_TYPE_UPGRADED_QUEUE, true);
     }
 
     // ========== NOUVELLES QUEUES WALLET ==========
@@ -89,6 +98,14 @@ public class RabbitMQConfig {
                 .with(WALLET_CONNECTED_ROUTING_KEY);
     }
 
+
+    @Bean
+    public Binding userTypeUpgradedBinding(Queue userTypeUpgradedQueue, TopicExchange userExchange) {
+        return BindingBuilder
+                .bind(userTypeUpgradedQueue)
+                .to(userExchange)
+                .with(USER_TYPE_UPGRADED_ROUTING_KEY);
+    }
     @Bean
     public Binding walletUpdatedBinding(Queue walletUpdatedQueue, TopicExchange userExchange) {
         return BindingBuilder

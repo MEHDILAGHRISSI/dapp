@@ -23,6 +23,10 @@ public class RabbitMQConfig {
     public static final String USER_CREATED_ROUTING_KEY = "user.created";
     public static final String USER_UPDATED_ROUTING_KEY = "user.updated";
 
+    // ========== NOUVELLE QUEUE USER TYPE ==========
+    public static final String USER_TYPE_UPGRADED_QUEUE = "user.type.upgraded.queue";
+    public static final String USER_TYPE_UPGRADED_ROUTING_KEY = "user.type.upgraded";
+
     // ✅ NOUVELLES QUEUES pour les événements wallet
     public static final String WALLET_CONNECTED_QUEUE = "user.wallet.connected.queue";
     public static final String WALLET_UPDATED_QUEUE = "user.wallet.updated.queue";
@@ -125,5 +129,17 @@ public class RabbitMQConfig {
         final RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
         rabbitTemplate.setMessageConverter(jsonMessageConverter());
         return rabbitTemplate;
+    }
+
+    @Bean
+    public Queue userTypeUpgradedQueue() {
+        return new Queue(USER_TYPE_UPGRADED_QUEUE, true);
+    }
+
+    @Bean
+    public Binding userTypeUpgradedBinding(Queue userTypeUpgradedQueue, TopicExchange userExchange) {
+        return BindingBuilder.bind(userTypeUpgradedQueue)
+                .to(userExchange)
+                .with(USER_TYPE_UPGRADED_ROUTING_KEY);
     }
 }

@@ -30,12 +30,11 @@ public class PropertyEntity implements Serializable {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // MODIFICATION: Relation avec Owner
+    // Relation avec Owner
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private Owner owner;
 
-    // Garder ownerId pour compatibilité
     @Column(name = "owner_user_id", nullable = false, length = 50)
     private String ownerId;
 
@@ -84,18 +83,10 @@ public class PropertyEntity implements Serializable {
     @Column(name = "image_path", length = 500)
     private List<String> imageFolderPath = new ArrayList<>();
 
-    // Status
-    @Column(nullable = false)
-    private Boolean isHidden = false;
-
-    @Column(nullable = false)
-    private Boolean isDraft = false;
-
-    @Column(nullable = false)
-    private Boolean isDeleted = false;
-
-    @Column(nullable = false)
-    private Boolean isValidated = false;
+    // ✅ NOUVEAU: UNIQUEMENT Status ENUM (pas de booléens !)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PropertyStatus status = PropertyStatus.DRAFT;
 
     // Timestamps
     @Column(nullable = false, updatable = false)
@@ -113,7 +104,8 @@ public class PropertyEntity implements Serializable {
     @JsonManagedReference
     private List<Characteristic> characteristics = new ArrayList<>();
 
-    // Helper methods
+    // ========== HELPER METHODS ==========
+
     public void addCharacteristic(Characteristic characteristic) {
         this.characteristics.add(characteristic);
         characteristic.getProperties().add(this);
@@ -135,7 +127,31 @@ public class PropertyEntity implements Serializable {
         lastUpdateAt = LocalDateTime.now();
     }
 
-    // Getters and Setters
+    // ========== BUSINESS LOGIC HELPERS ==========
+
+    /**
+     * Vérifier si property est visible publiquement
+     */
+    public boolean isPubliclyVisible() {
+        return status.isPubliclyVisible();
+    }
+
+    /**
+     * Vérifier si property peut accepter des bookings
+     */
+    public boolean canAcceptBookings() {
+        return status.canAcceptBookings();
+    }
+
+    /**
+     * Vérifier si property est éditable
+     */
+    public boolean isEditable() {
+        return status.isEditable();
+    }
+
+    // ========== GETTERS AND SETTERS ==========
+
     public Long getId() {
         return id;
     }
@@ -299,36 +315,12 @@ public class PropertyEntity implements Serializable {
         this.imageFolderPath = imageFolderPath;
     }
 
-    public Boolean getIsHidden() {
-        return isHidden;
+    public PropertyStatus getStatus() {
+        return status;
     }
 
-    public void setIsHidden(Boolean isHidden) {
-        this.isHidden = isHidden;
-    }
-
-    public Boolean getIsDraft() {
-        return isDraft;
-    }
-
-    public void setIsDraft(Boolean isDraft) {
-        this.isDraft = isDraft;
-    }
-
-    public Boolean getIsDeleted() {
-        return isDeleted;
-    }
-
-    public void setIsDeleted(Boolean isDeleted) {
-        this.isDeleted = isDeleted;
-    }
-
-    public Boolean getIsValidated() {
-        return isValidated;
-    }
-
-    public void setIsValidated(Boolean isValidated) {
-        this.isValidated = isValidated;
+    public void setStatus(PropertyStatus status) {
+        this.status = status;
     }
 
     public LocalDateTime getCreatedAt() {

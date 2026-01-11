@@ -1,6 +1,7 @@
 package ma.fstt.listingservice.responses;
 
 import ma.fstt.listingservice.dto.CharacteristicDto;
+import ma.fstt.listingservice.entities.PropertyStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,19 +37,18 @@ public class PropertyResponse {
     // Images
     private List<String> imageFolderPath = new ArrayList<>();
 
-    // Status
-    private Boolean isHidden;
-    private Boolean isDraft;
-    private Boolean isValidated;
+    // ✅ NOUVEAU: Status ENUM
+    private PropertyStatus status;
 
     // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime lastUpdateAt;
 
-    // Characteristics - CORRIGÉ: doit être une List
+    // Characteristics
     private List<CharacteristicDto> characteristics = new ArrayList<>();
 
-    // Getters and Setters
+    // ========== GETTERS ET SETTERS ==========
+
     public String getPropertyId() {
         return propertyId;
     }
@@ -193,28 +193,13 @@ public class PropertyResponse {
         this.imageFolderPath = imageFolderPath;
     }
 
-    public Boolean getIsHidden() {
-        return isHidden;
+    // ✅ NOUVEAU: Getter/Setter status
+    public PropertyStatus getStatus() {
+        return status;
     }
 
-    public void setIsHidden(Boolean isHidden) {
-        this.isHidden = isHidden;
-    }
-
-    public Boolean getIsDraft() {
-        return isDraft;
-    }
-
-    public void setIsDraft(Boolean isDraft) {
-        this.isDraft = isDraft;
-    }
-
-    public Boolean getIsValidated() {
-        return isValidated;
-    }
-
-    public void setIsValidated(Boolean isValidated) {
-        this.isValidated = isValidated;
+    public void setStatus(PropertyStatus status) {
+        this.status = status;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -233,7 +218,6 @@ public class PropertyResponse {
         this.lastUpdateAt = lastUpdateAt;
     }
 
-    // CORRIGÉ: retourne une List au lieu d'un objet unique
     public List<CharacteristicDto> getCharacteristics() {
         return characteristics;
     }

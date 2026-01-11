@@ -5,6 +5,7 @@ import ma.fstt.listingservice.requests.PropertyRequest;
 import ma.fstt.listingservice.requests.PropertyStatusRequest;
 import ma.fstt.listingservice.responses.PropertyResponse;
 import ma.fstt.listingservice.services.PropertyService;
+import ma.fstt.listingservice.services.impl.PropertyServiceImpl;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -25,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import ma.fstt.listingservice.entities.PropertyStatus;
+import ma.fstt.listingservice.requests.*;
 
 @RestController
 @RequestMapping("/properties")
@@ -279,6 +282,179 @@ public class PropertyController {
             Map<String, Long> response = new HashMap<>();
             response.put("count", 0L);
             return ResponseEntity.ok(response);
+        }
+    }
+
+    // Dans PropertyController.java
+
+    /**
+     * Soumettre pour validation (Owner seulement)
+     */
+    @PostMapping("/{propertyId}/submit")
+    public ResponseEntity<?> submitProperty(
+            @PathVariable String propertyId,
+            @RequestHeader("X-User-Id") String userId) {
+
+        PropertyDto property = propertyService.getPropertyByPropertyId(propertyId);
+
+        // Vérifier ownership
+        if (!property.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Not your property"));
+        }
+
+        // ✅ FIX: Vérifier état - Seules les propriétés DRAFT peuvent être soumises
+        if (property.getStatus() != PropertyStatus.DRAFT) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Only DRAFT properties can be submitted. Current status: " + property.getStatus()));
+        }
+
+        // Changer statut: DRAFT → PENDING
+        PropertyDto updated = propertyService.submitPropertyForValidation(propertyId);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Valider property (ADMIN seulement)
+     */
+    @PatchMapping("/{propertyId}/validate")
+    public ResponseEntity<?> validateProperty(
+            @PathVariable String propertyId,
+            @RequestHeader("X-Roles") String roles) {
+
+        // ✅ Vérification ADMIN
+        if (!roles.contains("ADMIN")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Admin only"));
+        }
+
+        PropertyDto updated = propertyService.validateProperty(propertyId);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * ✅ NOUVEAU: Mettre à jour status avec ENUM
+     * PATCH /properties/{propertyId}/status-v2
+     */
+    @PatchMapping("/{propertyId}/status-v2")
+    public ResponseEntity<?> updatePropertyStatusV2(
+            @PathVariable String propertyId,
+            @RequestBody PropertyStatusUpdateRequest request,
+            @RequestHeader("X-User-Id") String userId) {
+        try {
+            // Appeler la nouvelle méthode avec ENUM
+            PropertyDto updatedProperty = ((PropertyServiceImpl) propertyService)
+                    .updatePropertyStatusEnum(propertyId, request.getStatus(), userId);
+
+            PropertyResponse response = convertDtoToResponse(updatedProperty);
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Invalid status transition: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    /**
+     * ✅ NOUVEAU: Cacher temporairement une property (ACTIVE → HIDDEN)
+     * POST /properties/{propertyId}/hide
+     */
+    @PostMapping("/{propertyId}/hide")
+    public ResponseEntity<?> hideProperty(
+            @PathVariable String propertyId,
+            @RequestHeader("X-User-Id") String userId) {
+        try {
+            PropertyStatusUpdateRequest request = new PropertyStatusUpdateRequest();
+            request.setStatus(PropertyStatus.HIDDEN);
+
+            return updatePropertyStatusV2(propertyId, request, userId);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    /**
+     * ✅ NOUVEAU: Rendre visible une property cachée (HIDDEN → ACTIVE)
+     * POST /properties/{propertyId}/show
+     */
+    @PostMapping("/{propertyId}/show")
+    public ResponseEntity<?> showProperty(
+            @PathVariable String propertyId,
+            @RequestHeader("X-User-Id") String userId) {
+        try {
+            PropertyStatusUpdateRequest request = new PropertyStatusUpdateRequest();
+            request.setStatus(PropertyStatus.ACTIVE);
+
+            return updatePropertyStatusV2(propertyId, request, userId);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+    }
+
+    /**
+     * ✅ ADMIN ONLY: Lister toutes les properties en attente de validation
+     * GET /properties/pending
+     */
+    @GetMapping("/pending")
+    public ResponseEntity<?> getPendingProperties(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestHeader("X-Roles") String roles) {
+
+        // Vérifier que c'est un ADMIN
+        if (!roles.contains("ADMIN")) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Admin access required");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<PropertyDto> properties = ((PropertyServiceImpl) propertyService)
+                .getAllByStatus(PropertyStatus.PENDING, pageable);
+
+        Page<PropertyResponse> responses = properties.map(this::convertDtoToResponse);
+        return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * ✅ ADMIN ONLY: Rejeter une property (PENDING → DRAFT)
+     * POST /properties/{propertyId}/reject
+     */
+    @PostMapping("/{propertyId}/reject")
+    public ResponseEntity<?> rejectProperty(
+            @PathVariable String propertyId,
+            @RequestHeader("X-Roles") String roles,
+            @RequestBody(required = false) Map<String, String> body) {
+
+        if (!roles.contains("ADMIN")) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Admin access required");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        }
+
+        try {
+            PropertyStatusUpdateRequest request = new PropertyStatusUpdateRequest();
+            request.setStatus(PropertyStatus.DRAFT);
+
+            // Note: Utiliser userId de l'owner (à récupérer depuis property)
+            PropertyDto property = propertyService.getPropertyByPropertyId(propertyId);
+            PropertyDto updated = ((PropertyServiceImpl) propertyService)
+                    .updatePropertyStatusEnum(propertyId, PropertyStatus.DRAFT, property.getUserId());
+
+            PropertyResponse response = convertDtoToResponse(updated);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
 }

@@ -2,6 +2,7 @@ package ma.fstt.listingservice.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -38,7 +39,12 @@ public class SecurityConfig {
                         .requestMatchers("/type-caracteristiques/{id}").permitAll()    // GET type by ID
 
                         // Owners - Vérification publique
-                        .requestMatchers("/owners/check/{userId}").permitAll()         // Check owner status
+                        .requestMatchers("/owners/check/{userId}").permitAll()   // Check owner status
+
+                        .requestMatchers(HttpMethod.PATCH, "/properties/*/validate").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/properties/*/reject").permitAll()   // 👈 Ajoute ceci
+                        .requestMatchers(HttpMethod.GET, "/properties/pending").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/properties/*/submit").permitAll() // 👈 AJOUTEZ CETTE LIGNE
 
                         // ========== ROUTES PROTÉGÉES (Authentification JWT requise) ==========
                         // Toutes les autres routes nécessitent authentification
