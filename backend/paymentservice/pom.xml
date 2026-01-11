@@ -21,6 +21,7 @@
 	<properties>
 		<java.version>17</java.version>
 		<web3j.version>4.10.3</web3j.version>
+		<spring-cloud.version>2023.0.0</spring-cloud.version>
 	</properties>
 
 	<dependencies>
@@ -45,6 +46,12 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
+		<!-- Spring Cloud OpenFeign -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-openfeign</artifactId>
+		</dependency>
+
 		<!-- RabbitMQ -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -64,8 +71,6 @@
 			<artifactId>mysql-connector-j</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-
-
 
 		<!-- Lombok -->
 		<dependency>
@@ -94,6 +99,19 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<!-- AJOUT CRITIQUE: Dependency Management pour Spring Cloud -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>
