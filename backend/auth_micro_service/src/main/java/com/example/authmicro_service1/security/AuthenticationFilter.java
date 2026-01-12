@@ -21,9 +21,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
@@ -61,30 +59,50 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
         Key key = Keys.hmacShaKeyFor(SecurityConstants.TOKEN_SECRET.getBytes(StandardCharsets.UTF_8));
 
+        // ✅ 1. Récupérer les détails complets de l'utilisateur
         UserService userService = (UserService) SpringApplicationContext.getBean("userServiceImpl");
-        UserDto userDto = userService.getUser(userName);
+        UserDto userDetails = userService.getUser(userName);
 
-        // ✅ Convertir les enums en String pour le JWT
-        List<String> roleNames = userDto.getRoles().stream()
+        // ✅ 2. Convertir les enums en String pour le JWT
+        List<String> roleNames = userDetails.getRoles().stream()
                 .map(Enum::name)
                 .collect(Collectors.toList());
 
-        List<String> typeNames = userDto.getTypes().stream()
+        List<String> typeNames = userDetails.getTypes().stream()
                 .map(Enum::name)
                 .collect(Collectors.toList());
 
+        // ✅ 3. Générer le Token JWT
         String token = Jwts.builder()
                 .setSubject(userName)
-                .claim("userId", userDto.getUserId())
-                .claim("roles", roleNames)   // Liste de String
-                .claim("types", typeNames)   // Liste de String
+                .claim("userId", userDetails.getUserId())
+                .claim("roles", roleNames)
+                .claim("types", typeNames)
                 .setExpiration(new Date(System.currentTimeMillis() + SecurityConstants.EXPIRATION_TIME))
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
 
-        // ✅ Réponse HTTP
+        // ✅ 4. Ajouter le token dans les headers
         res.addHeader(SecurityConstants.HEADER_STRING, SecurityConstants.TOKEN_PREFIX + token);
-        res.addHeader("user_id", userDto.getUserId());
+        res.addHeader("user_id", userDetails.getUserId());
+
+        // ✅ 5. NOUVEAU : Retourner l'objet utilisateur complet en JSON dans le body
+        res.setContentType("application/json");
+        res.setCharacterEncoding("UTF-8");
+
+        // Retirer les mots de passe avant d'envoyer
+        userDetails.setPassword(null);
+        userDetails.setEncrypted_password(null);
+
+        // Créer un objet de réponse complet
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("token", token);
+        responseBody.put("user", userDetails);
+        responseBody.put("message", "Connexion réussie");
+
+        String jsonResponse = new ObjectMapper().writeValueAsString(responseBody);
+        res.getWriter().write(jsonResponse);
+        res.getWriter().flush();
     }
 
 }

@@ -5,6 +5,7 @@ import com.example.authmicro_service1.dto.UserDto;
 import com.example.authmicro_service1.dto.WalletProvidedMessage;
 import com.example.authmicro_service1.entities.UserEntity;
 import com.example.authmicro_service1.entities.UserRole;
+import com.example.authmicro_service1.entities.UserType;
 import com.example.authmicro_service1.repositories.UserRepository;
 import com.example.authmicro_service1.services.UserService;
 import com.example.authmicro_service1.shared.OTPGenerator;
@@ -55,12 +56,18 @@ public class userServiceImpl implements UserService {
         UserEntity userEntity = new UserEntity();
         BeanUtils.copyProperties(userDto, userEntity);
 
+        // ✅ 1. Rôle USER par défaut si non fourni
         if (userEntity.getRoles() == null || userEntity.getRoles().isEmpty()) {
-            userEntity.setRoles(Set.of(UserRole.USER));
+            Set<UserRole> roles = new HashSet<>();
+            roles.add(UserRole.USER);
+            userEntity.setRoles(roles);
         }
 
-        if (userEntity.getTypes() == null) {
-            userEntity.setTypes(new HashSet<>());
+        // ✅ 2. Type CLIENT par défaut si non fourni (CORRECTION)
+        if (userEntity.getTypes() == null || userEntity.getTypes().isEmpty()) {
+            Set<UserType> types = new HashSet<>();
+            types.add(UserType.CLIENT);  // ✅ CORRECTION ICI
+            userEntity.setTypes(types);
         }
 
         userEntity.setUserId(otpGenerator.generateUserId(30));
@@ -74,10 +81,10 @@ public class userServiceImpl implements UserService {
         UserEntity savedUser = userRepository.save(userEntity);
         emailService.sendVerificationCode(savedUser.getEmail(), otp);
 
-        // ✅ PUBLIER L'ÉVÉNEMENT DE CRÉATION
+        // Publier l'événement de création
         rabbitMQProducer.publishUserCreated(
                 savedUser.getUserId(),
-                savedUser.getWalletAddress()  // Peut être null
+                savedUser.getWalletAddress()
         );
 
         UserDto returnValue = new UserDto();
