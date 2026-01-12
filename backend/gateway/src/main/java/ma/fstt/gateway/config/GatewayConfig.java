@@ -164,6 +164,25 @@ public class GatewayConfig {
 
                 // ==================== LISTING SERVICE ====================
 
+
+                // ==================== LISTING SERVICE ====================
+
+// 1. My Properties (Specific route MUST come first)
+                .route("listing_my_properties", r -> r
+                        .path("/api/listings/properties/my-properties")
+                        .and().method("GET")
+                        .filters(f -> f
+                                .stripPrefix(2) // Becomes /listings/properties/my-properties
+                                .filter(jwtAuthenticationFilter)) // Adds X-User-Id header
+                        .uri(listingServiceUrl))
+
+// 2. Get Property by ID (Generic route)
+                .route("listing_get_property", r -> r
+                        .path("/api/listings/properties/{propertyId}")
+                        .and().method("GET")
+                        .filters(f -> f.stripPrefix(2)) // Public access (no filter needed)
+                        .uri(listingServiceUrl))
+
                 // ---------- Properties - Public Routes ----------
                 .route("listing_get_all_properties", r -> r
                         .path("/api/listings/properties")
@@ -180,11 +199,8 @@ public class GatewayConfig {
                                 .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
                         .uri(listingServiceUrl))
 
-                .route("listing_get_property", r -> r
-                        .path("/api/listings/properties/{propertyId}")
-                        .and().method("GET")
-                        .filters(f -> f.stripPrefix(2))
-                        .uri(listingServiceUrl))
+
+
 
                 .route("listing_search_properties", r -> r
                         .path("/api/listings/properties/search")
@@ -223,13 +239,7 @@ public class GatewayConfig {
                                 .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
 
-                .route("listing_get_my_properties", r -> r
-                        .path("/api/listings/properties/my-properties")
-                        .and().method("GET")
-                        .filters(f -> f
-                                .stripPrefix(2)
-                                .filter(jwtAuthenticationFilter))
-                        .uri(listingServiceUrl))
+
 
                 .route("listing_get_properties_by_owner", r -> r
                         .path("/api/listings/properties/owner/{ownerId}")

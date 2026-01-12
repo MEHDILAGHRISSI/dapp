@@ -45,7 +45,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/properties/*/reject").permitAll()   // 👈 Ajoute ceci
                         .requestMatchers(HttpMethod.GET, "/properties/pending").permitAll()
                         .requestMatchers(HttpMethod.POST, "/properties/*/submit").permitAll() // 👈 AJOUTEZ CETTE LIGNE
-
+                        .requestMatchers("/properties/my-properties").permitAll() // 👈 ADD THIS LINE
                         // ========== ROUTES PROTÉGÉES (Authentification JWT requise) ==========
                         // Toutes les autres routes nécessitent authentification
                         .anyRequest().authenticated()
