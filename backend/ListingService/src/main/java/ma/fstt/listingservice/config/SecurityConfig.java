@@ -48,6 +48,15 @@ public class SecurityConfig {
                         .requestMatchers("/properties/my-properties").permitAll() // 👈 ADD THIS LINE
                         // ========== ROUTES PROTÉGÉES (Authentification JWT requise) ==========
                         // Toutes les autres routes nécessitent authentification
+
+
+                                // ========== IMAGES - UPLOAD ET GESTION ==========
+                                .requestMatchers(HttpMethod.POST, "/properties/*/images").permitAll()    // Upload images
+                                .requestMatchers(HttpMethod.DELETE, "/properties/*/images").permitAll()  // Delete images
+                                .requestMatchers(HttpMethod.GET, "/properties/*/images").permitAll()     // Get images
+
+// ========== COUNT ==========
+                                .requestMatchers("/properties/owner/*/count").permitAll()                // Count properties by owner
                         .anyRequest().authenticated()
                 )
 

@@ -65,14 +65,16 @@ public class JwtAuthenticationFilter implements GatewayFilter {
             List<String> roles = jwtUtil.getRolesFromToken(token);
             List<String> types = jwtUtil.getTypesFromToken(token);
 
-            // Ajouter les informations dans les headers
+            // ✅ Ajouter les informations dans les headers
             ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
                     .header("X-User-Id", userId)  // ✅ String, pas Long
                     .header("X-Username", username)
+                    .header("X-Roles", String.join(",", roles))  // ✅ AJOUTÉ: Header pour les endpoints admin
                     .header("X-User-Roles", String.join(",", roles))
                     .header("X-User-Types", String.join(",", types))
                     .build();
 
+            System.out.println("✅ Token validé avec succès");
             System.out.println("✅ Token validé pour l'utilisateur: " + username +
                     " | ID: " + userId +
                     " | Roles: " + roles +

@@ -164,32 +164,18 @@ public class GatewayConfig {
 
                 // ==================== LISTING SERVICE ====================
 
+                // ---------- Properties - Specific Routes (MUST come before generic routes) ----------
 
-                // ==================== LISTING SERVICE ====================
-
-// 1. My Properties (Specific route MUST come first)
+                // 1. My Properties (Specific)
                 .route("listing_my_properties", r -> r
                         .path("/api/listings/properties/my-properties")
                         .and().method("GET")
                         .filters(f -> f
-                                .stripPrefix(2) // Becomes /listings/properties/my-properties
-                                .filter(jwtAuthenticationFilter)) // Adds X-User-Id header
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
 
-// 2. Get Property by ID (Generic route)
-                .route("listing_get_property", r -> r
-                        .path("/api/listings/properties/{propertyId}")
-                        .and().method("GET")
-                        .filters(f -> f.stripPrefix(2)) // Public access (no filter needed)
-                        .uri(listingServiceUrl))
-
-                // ---------- Properties - Public Routes ----------
-                .route("listing_get_all_properties", r -> r
-                        .path("/api/listings/properties")
-                        .and().method("GET")
-                        .filters(f -> f.stripPrefix(2))
-                        .uri(listingServiceUrl))
-
+                // 2. Pending Properties (Specific - CRITICAL: Must be before {propertyId})
                 .route("listing_get_pending_properties", r -> r
                         .path("/api/listings/properties/pending")
                         .and().method("GET")
@@ -199,17 +185,30 @@ public class GatewayConfig {
                                 .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
                         .uri(listingServiceUrl))
 
-
-
-
+                // 3. Search Properties (Specific)
                 .route("listing_search_properties", r -> r
                         .path("/api/listings/properties/search")
                         .and().method("GET")
                         .filters(f -> f.stripPrefix(2))
                         .uri(listingServiceUrl))
 
+                // 4. Nearby Properties (Specific)
                 .route("listing_nearby_properties", r -> r
                         .path("/api/listings/properties/nearby")
+                        .and().method("GET")
+                        .filters(f -> f.stripPrefix(2))
+                        .uri(listingServiceUrl))
+
+                // 5. Get Property by ID (Generic - MUST be after all specific routes)
+                .route("listing_get_property", r -> r
+                        .path("/api/listings/properties/{propertyId}")
+                        .and().method("GET")
+                        .filters(f -> f.stripPrefix(2))
+                        .uri(listingServiceUrl))
+
+                // ---------- Properties - Public Routes ----------
+                .route("listing_get_all_properties", r -> r
+                        .path("/api/listings/properties")
                         .and().method("GET")
                         .filters(f -> f.stripPrefix(2))
                         .uri(listingServiceUrl))
@@ -238,8 +237,6 @@ public class GatewayConfig {
                                 .stripPrefix(2)
                                 .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
-
-
 
                 .route("listing_get_properties_by_owner", r -> r
                         .path("/api/listings/properties/owner/{ownerId}")
@@ -297,9 +294,30 @@ public class GatewayConfig {
                                 .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
 
+                // ---------- Property Images ----------
+                .route("listing_upload_images", r -> r
+                        .path("/api/listings/properties/{propertyId}/images")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
+
+                .route("listing_delete_image", r -> r
+                        .path("/api/listings/properties/{propertyId}/images")
+                        .and().method("DELETE")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
+
+                .route("listing_count_properties", r -> r
+                        .path("/api/listings/properties/owner/{ownerId}/count")
+                        .and().method("GET")
+                        .filters(f -> f.stripPrefix(2))
+                        .uri(listingServiceUrl))
+
                 // ---------- Properties - Admin Routes ----------
-
-
                 .route("listing_validate_property", r -> r
                         .path("/api/listings/properties/{propertyId}/validate")
                         .and().method("PATCH")
@@ -405,7 +423,6 @@ public class GatewayConfig {
                         .uri(listingServiceUrl))
 
                 // ==================== BOOKING SERVICE ====================
-                // Prefix: /api/bookings -> stripPrefix(1) -> /bookings
 
                 // ---------- Booking Creation & Management ----------
                 .route("booking_create", r -> r
@@ -440,7 +457,7 @@ public class GatewayConfig {
                                 .filter(jwtAuthenticationFilter))
                         .uri(bookingServiceUrl))
 
-                // ---------- Booking Counts (Used by Wallet Disconnect Validation) ----------
+                // ---------- Booking Counts ----------
                 .route("booking_future_host_count", r -> r
                         .path("/api/bookings/host/{userId}/future-count")
                         .and().method("GET")
@@ -458,7 +475,6 @@ public class GatewayConfig {
                         .uri(bookingServiceUrl))
 
                 // ==================== PAYMENT SERVICE ====================
-                // Prefix: /api/payments -> stripPrefix(1) -> /payments
 
                 // ---------- Payment Validation ----------
                 .route("payment_validate", r -> r
