@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, Lock, Key } from "lucide-react";
-import { useAuthStore } from "@/features/auth/store/authStore";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,105 +16,105 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import Logo from "@/components/Logo";
 
 const ResetPassword = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { resetPassword, isLoading } = useAuthStore();
-  
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    token: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { resetPassword, isLoading } = useAuthStore();
 
-  // Get email from navigation state or query params AND enforce flow
-  useEffect(() => {
-    // 1. Try to get email from state
-    let retrievedEmail = location.state?.email;
-    
-    // 2. Alternatively, try to get email from URL query params (for link-based resets)
-    const urlParams = new URLSearchParams(location.search);
-    const emailFromParams = urlParams.get('email');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    token: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-    if (emailFromParams) {
-      retrievedEmail = emailFromParams;
-    }
+  // Get email from navigation state or query params AND enforce flow
+  useEffect(() => {
+    // 1. Try to get email from state
+    let retrievedEmail = location.state?.email;
 
-    // 3. Set email or enforce redirect
-    if (retrievedEmail) {
-      setEmail(retrievedEmail);
-    } else {
-      // If no email is found in state or URL params, redirect to signin
-      navigate("/signin", { replace: true });
-    }
-  }, [location, navigate]); // Added navigate to dependency array for useEffect
+    // 2. Alternatively, try to get email from URL query params (for link-based resets)
+    const urlParams = new URLSearchParams(location.search);
+    const emailFromParams = urlParams.get('email');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
+    if (emailFromParams) {
+      retrievedEmail = emailFromParams;
+    }
 
-    // Validation
-    if (!formData.token || !formData.password || !formData.confirmPassword) {
-      setError("Please fill in all fields");
-      return;
-    }
+    // 3. Set email or enforce redirect
+    if (retrievedEmail) {
+      setEmail(retrievedEmail);
+    } else {
+      // If no email is found in state or URL params, redirect to signin
+      navigate("/signin", { replace: true });
+    }
+  }, [location, navigate]); // Added navigate to dependency array for useEffect
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords don't match");
-      return;
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
 
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
+    // Validation
+    if (!formData.token || !formData.password || !formData.confirmPassword) {
+      setError("Please fill in all fields");
+      return;
+    }
 
-    if (!email) {
-      // This error should theoretically be caught by useEffect, 
-      // but it's a good safety net for form submission
-      setError("Email is required. Redirecting to sign in...");
-      setTimeout(() => navigate("/signin", { replace: true }), 1000);
-      return;
-    }
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
 
-    try {
-      await resetPassword({
-        email: email,
-        code: formData.token,
-        newPassword: formData.password,
-      });
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
 
-      setSuccess("Password reset successfully! Redirecting to sign in...");
-      setTimeout(() => {
-        navigate("/signin");
-      }, 2000);
-    } catch (error: any) {
-      setError(error.message || "Failed to reset password. Please try again.");
-    }
-  };
+    if (!email) {
+      // This error should theoretically be caught by useEffect, 
+      // but it's a good safety net for form submission
+      setError("Email is required. Redirecting to sign in...");
+      setTimeout(() => navigate("/signin", { replace: true }), 1000);
+      return;
+    }
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (error) setError("");
-  };
+    try {
+      await resetPassword({
+        email: email,
+        code: formData.token,
+        newPassword: formData.password,
+      });
 
-  const handleBackToForgotPassword = () => {
-    navigate("/forgot-password");
-  };
+      setSuccess("Password reset successfully! Redirecting to sign in...");
+      setTimeout(() => {
+        navigate("/signin");
+      }, 2000);
+    } catch (error: any) {
+      setError(error.message || "Failed to reset password. Please try again.");
+    }
+  };
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-4">
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (error) setError("");
+  };
+
+  const handleBackToForgotPassword = () => {
+    navigate("/forgot-password");
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-4">
       {/* Back Button */}
       <div className="w-full max-w-sm mb-2">
         <Button
           variant="ghost"
           onClick={handleBackToForgotPassword}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground p-0 h-auto"
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-700 p-0 h-auto"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Forgot Password
@@ -123,15 +123,15 @@ const ResetPassword = () => {
 
       {/* Logo outside the card at top center */}
       <div className="flex justify-center mb-4">
-        <Logo size="md" />
+        <Logo size="md" className="text-navy-deep" />
       </div>
 
-      <Card className="w-full max-w-sm border shadow-lg">
+      <Card className="w-full max-w-sm border border-slate-200 shadow-lg">
         <CardHeader className="text-center pb-2 space-y-1">
-          <CardTitle className="text-xl font-bold text-[#182a3a]">
+          <CardTitle className="text-xl font-bold text-navy-deep">
             Reset Password
           </CardTitle>
-          <CardDescription className="text-sm">
+          <CardDescription className="text-sm text-slate-600">
             {email ? `Enter the reset token sent to ${email}` : "Enter your reset token and new password"}
           </CardDescription>
         </CardHeader>
@@ -156,18 +156,18 @@ const ResetPassword = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Reset Token Field */}
             <div className="space-y-1">
-              <Label htmlFor="token" className="text-xs font-medium text-foreground">
+              <Label htmlFor="token" className="text-xs font-medium text-slate-700">
                 Reset Token
               </Label>
               <div className="relative">
-                <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-slate-400" />
                 <Input
                   id="token"
                   type="text"
                   required
                   value={formData.token}
                   onChange={(e) => handleInputChange("token", e.target.value)}
-                  className="pl-8 h-9 text-sm"
+                  className="pl-8 h-9 text-sm bg-white border-slate-300 focus:border-navy-deep focus:ring-2 focus:ring-navy-deep/20"
                   placeholder="Enter reset token"
                   disabled={isLoading}
                 />
@@ -176,18 +176,18 @@ const ResetPassword = () => {
 
             {/* New Password Field */}
             <div className="space-y-1">
-              <Label htmlFor="password" className="text-xs font-medium text-foreground">
+              <Label htmlFor="password" className="text-xs font-medium text-slate-700">
                 New Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-slate-400" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   required
                   value={formData.password}
                   onChange={(e) => handleInputChange("password", e.target.value)}
-                  className="pl-8 pr-10 h-9 text-sm"
+                  className="pl-8 pr-10 h-9 text-sm bg-white border-slate-300 focus:border-navy-deep focus:ring-2 focus:ring-navy-deep/20"
                   placeholder="Min. 6 characters"
                   minLength={6}
                   disabled={isLoading}
@@ -197,7 +197,7 @@ const ResetPassword = () => {
                   variant="ghost"
                   size="icon"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 text-slate-400 hover:text-slate-600"
                 >
                   {showPassword ? (
                     <EyeOff className="h-3 w-3" />
@@ -210,18 +210,18 @@ const ResetPassword = () => {
 
             {/* Confirm Password Field */}
             <div className="space-y-1">
-              <Label htmlFor="confirmPassword" className="text-xs font-medium text-foreground">
+              <Label htmlFor="confirmPassword" className="text-xs font-medium text-slate-700">
                 Confirm Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-slate-400" />
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   required
                   value={formData.confirmPassword}
                   onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                  className="pl-8 pr-10 h-9 text-sm"
+                  className="pl-8 pr-10 h-9 text-sm bg-white border-slate-300 focus:border-navy-deep focus:ring-2 focus:ring-navy-deep/20"
                   placeholder="Confirm password"
                   disabled={isLoading}
                 />
@@ -230,7 +230,7 @@ const ResetPassword = () => {
                   variant="ghost"
                   size="icon"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 text-slate-400 hover:text-slate-600"
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="h-3 w-3" />
@@ -244,7 +244,7 @@ const ResetPassword = () => {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#182a3a] text-white hover:bg-[#182a3a]/90 h-9 text-sm font-medium"
+              className="w-full bg-navy-deep text-white hover:bg-navy-deep/90 h-9 text-sm font-medium"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2">
@@ -257,11 +257,11 @@ const ResetPassword = () => {
             </Button>
 
             <div className="text-center pt-2">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-slate-500">
                 Remember your password?{" "}
                 <Link
                   to="/signin"
-                  className="text-[#182a3a] hover:text-[#182a3a]/80 font-semibold hover:underline text-xs"
+                  className="text-navy-deep hover:text-navy-deep/80 font-semibold hover:underline text-xs"
                 >
                   Sign in
                 </Link>

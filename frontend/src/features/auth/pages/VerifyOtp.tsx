@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Mail } from "lucide-react";
-import { useAuthStore } from "@/features/auth/store/authStore";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,7 +30,7 @@ const VerifyOtp = () => {
       setEmail(location.state.email);
       setSuccess(
         location.state.message ||
-          "Please enter the verification code sent to your email."
+        "Please enter the verification code sent to your email."
       );
     } else {
       navigate("/signup");
@@ -93,27 +93,27 @@ const VerifyOtp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-6">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-6 py-6">
       {/* Logo outside the card at top center */}
       <div className="flex justify-center mb-4">
-        <Logo size="lg" />
+        <Logo size="lg" className="text-navy-deep" />
       </div>
 
-      <Card className="w-full max-w-md border shadow-lg pt-8">
+      <Card className="w-full max-w-md border border-slate-200 shadow-lg pt-8">
         <CardContent className="p-8">
           <div className="text-center space-y-6">
-            <div className="bg-[#182a3a] p-3 rounded-full inline-flex mb-4">
+            <div className="bg-navy-deep p-3 rounded-full inline-flex mb-4">
               <Mail className="h-8 w-8 text-white" />
             </div>
 
             <div className="space-y-2">
-              <CardTitle className="text-3xl font-bold text-[#182a3a]">
+              <CardTitle className="text-3xl font-bold text-navy-deep">
                 Verify Your Email
               </CardTitle>
-              <CardDescription className="text-lg">
+              <CardDescription className="text-lg text-slate-600">
                 Enter the 6-digit code sent to
               </CardDescription>
-              <p className="font-semibold text-[#182a3a] text-lg">{email}</p>
+              <p className="font-semibold text-navy-deep text-lg">{email}</p>
             </div>
           </div>
 
@@ -143,7 +143,7 @@ const VerifyOtp = () => {
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handleOtpChange(index, e.target.value)}
-                  className="w-12 h-12 text-center text-xl font-semibold"
+                  className="w-12 h-12 text-center text-xl font-semibold border-slate-300 focus:border-navy-deep focus:ring-2 focus:ring-navy-deep/20"
                   pattern="\d*"
                 />
               ))}
@@ -152,7 +152,7 @@ const VerifyOtp = () => {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#182a3a] text-white hover:bg-[#182a3a]/90 h-12 text-base"
+              className="w-full bg-navy-deep text-white hover:bg-navy-deep/90 h-12 text-base"
               size="lg"
             >
               {isLoading ? (
@@ -166,14 +166,14 @@ const VerifyOtp = () => {
             </Button>
 
             <div className="text-center">
-              <span className="text-muted-foreground">
+              <span className="text-slate-500">
                 Didn't receive the code?{" "}
                 <Button
                   type="button"
                   variant="link"
                   onClick={handleResendOtp}
                   disabled={countdown > 0}
-                  className="text-[#182a3a] hover:text-[#182a3a]/80 font-semibold p-0 h-auto"
+                  className="text-navy-deep hover:text-navy-deep/80 font-semibold p-0 h-auto"
                 >
                   {countdown > 0 ? `Resend in ${countdown}s` : "Resend Code"}
                 </Button>

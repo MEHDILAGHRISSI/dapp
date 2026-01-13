@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Mail } from "lucide-react";
-import { useAuthStore } from "@/features/auth/store/authStore";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,9 +41,9 @@ const ForgotPassword = () => {
     }
 
     try {
-      await forgotPassword({email : email});
+      await forgotPassword({ email: email });
       setSuccess("Password reset instructions have been sent to your email!");
-      
+
       // Redirect to reset password page with email as state
       setTimeout(() => {
         navigate("/reset-password", { state: { email } });
@@ -60,20 +60,18 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-6">
-      
-
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-6 py-6">
       {/* Logo outside the card at top center */}
       <div className="flex justify-center mb-8">
-        <Logo size="lg" />
+        <Logo size="lg" className="text-navy-deep" />
       </div>
 
-      <Card className="w-full max-w-md border shadow-lg">
+      <Card className="w-full max-w-md border border-slate-200 shadow-lg">
         <CardHeader className="text-center pb-4">
-          <CardTitle className="text-2xl font-bold text-[#182a3a]">
+          <CardTitle className="text-2xl font-bold text-navy-deep">
             Forgot Password?
           </CardTitle>
-          <CardDescription className="text-base">
+          <CardDescription className="text-base text-slate-600">
             Enter your email address and we'll send you instructions to reset your password.
           </CardDescription>
         </CardHeader>
@@ -97,18 +95,18 @@ const ForgotPassword = () => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-foreground">
+              <Label htmlFor="email" className="text-sm font-medium text-slate-700">
                 Email Address
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   id="email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 h-11"
+                  className="pl-10 h-11 bg-white border-slate-300 focus:border-navy-deep focus:ring-2 focus:ring-navy-deep/20"
                   placeholder="Enter your email"
                   disabled={isLoading}
                 />
@@ -118,7 +116,7 @@ const ForgotPassword = () => {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#182a3a] text-white hover:bg-[#182a3a]/90 h-11 text-sm font-medium"
+              className="w-full bg-navy-deep text-white hover:bg-navy-deep/90 h-11 text-sm font-medium"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2">
@@ -131,11 +129,11 @@ const ForgotPassword = () => {
             </Button>
 
             <div className="text-center pt-4">
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-slate-500">
                 Remember your password?{" "}
                 <Link
                   to="/signin"
-                  className="text-[#182a3a] hover:text-[#182a3a]/80 font-semibold hover:underline"
+                  className="text-navy-deep hover:text-navy-deep/80 font-semibold hover:underline"
                 >
                   Sign in
                 </Link>

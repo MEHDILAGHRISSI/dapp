@@ -38,12 +38,12 @@ export function BecomeHost({
             </div>
             <h3 className="text-lg font-bold mb-2">Become a Host</h3>
             <p className="text-gray-600 text-sm mb-4">
-              Sign in to start hosting on RealChain
+              Sign in to start hosting on DecentRent
             </p>
             <div className="space-y-2">
               <Button
                 onClick={onSignIn}
-                className="w-full bg-[#182a3a] text-white"
+                className="w-full bg-primary text-white hover:bg-primary/90"
               >
                 Sign In
               </Button>
@@ -112,9 +112,8 @@ export function BecomeHost({
               >
                 <Badge
                   variant={currentStep >= step.number ? "default" : "outline"}
-                  className={`${
-                    currentStep >= step.number ? "bg-[#182a3a]" : ""
-                  }`}
+                  className={`${currentStep >= step.number ? "bg-primary" : ""
+                    }`}
                 >
                   {step.number}
                 </Badge>
@@ -153,11 +152,11 @@ export function BecomeHost({
             </Button>
 
             {currentStep < 3 ? (
-              <Button onClick={nextStep} className="flex-1 bg-[#182a3a]">
+              <Button onClick={nextStep} className="flex-1 bg-primary hover:bg-primary/90">
                 Continue
               </Button>
             ) : (
-              <Button onClick={handleConfirm} className="flex-1 bg-green-600">
+              <Button onClick={handleConfirm} className="flex-1 bg-green-600 hover:bg-green-700">
                 Start Hosting
               </Button>
             )}

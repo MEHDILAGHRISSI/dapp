@@ -18,23 +18,22 @@ import {
   Settings,
   LogOut,
   Menu,
+  Home,
 } from "lucide-react";
 
-import { useAuthStore } from "@/features/auth/store/authStore";
-import { useProfileStore } from "@/features/profile/store/profileStore";
-
+import { useAuthStore } from "@/features/auth/store/auth.store";
+import { useProfileStore } from "@/features/settings/store/profile.store";
 
 import Logo from "@/components/Logo";
 import { BecomeHost } from "./BecomeHost";
 import { WalletConnectButton } from "./WalletConnectButton";
 
-export function Navbar() {
+export const Navbar = () => {
   const navigate = useNavigate();
   const [showBecomeHost, setShowBecomeHost] = useState(false);
 
   const { isAuthenticated, logout } = useAuthStore();
   const { user: profileUser } = useProfileStore();
-  
 
   const handleBecomeHost = () => setShowBecomeHost(true);
   const handleSignIn = () => {
@@ -46,10 +45,11 @@ export function Navbar() {
   const handleFavorites = () => navigate("/favorites");
   const handleMessages = () => navigate("/messages");
   const handleSettings = () => navigate("/settings");
+  const handleHostDashboard = () => navigate("/host/dashboard");
 
   const handleDisconnect = () => {
     logout();
-   
+    navigate("/");
   };
 
   // Safely get display email with fallbacks
@@ -57,24 +57,20 @@ export function Navbar() {
     if (profileUser?.email) {
       return profileUser.email;
     }
-    // Add additional fallbacks if needed from auth store
-    return "user@example.com"; // Default fallback
+    return "user@example.com";
   };
 
   // Safely get display initial with fallbacks
   const getDisplayInitial = (): string => {
-    // Try profile firstname first character
     if (profileUser?.firstname) {
       return profileUser.firstname.charAt(0).toUpperCase();
     }
-    
-    // Fallback to email first character
+
     const email = getDisplayEmail();
     if (email && email.length > 0) {
       return email.charAt(0).toUpperCase();
     }
-    
-    // Ultimate fallback
+
     return "U";
   };
 
@@ -89,110 +85,121 @@ export function Navbar() {
 
   return (
     <>
-      <nav className="fixed top-0 w-full bg-[#182a3a] backdrop-blur-md z-50 py-3 px-6">
-        <div className="max-w-full mx-auto flex justify-between items-center">
-          <Logo size="lg" logocolor="white" textcolor="#ffffff" className="gap-3" />
+      <nav className="relative z-50 flex items-center justify-between bg-brand-dark px-6 py-4 lg:px-10">
+        {/* Logo Section */}
+        <div className="flex items-center gap-4">
+          <Logo size="md" textcolor="white" iconColor="#2DD4BF" />
+        </div>
 
-          <div className="flex items-center gap-6">
-            <Button
-              variant="ghost"
-              onClick={handleBecomeHost}
-              className="text-white hover:text-gray-200 hover:bg-white/10 font-medium"
-            >
-              Become a Host
-            </Button>
+        {/* Right Side Actions */}
+        <div className="flex items-center gap-4">
+          {isAuthenticated ? (
+            // AUTHENTICATED UI
+            <div className="flex items-center gap-4">
+              {/* Wallet Connect Button */}
+              <WalletConnectButton />
 
-            <Separator orientation="vertical" className="h-6 bg-white/30" />
+              {/* Profile Dropdown Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-10 w-10 p-0 flex items-center justify-center text-white hover:bg-white/10 rounded-full border border-transparent"
+                  >
+                    <Avatar className="h-8 w-8 ring-2 ring-brand-blue/30">
+                      <AvatarFallback className="bg-brand-blue text-white text-sm font-semibold">
+                        {displayInitial}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
 
-            {isAuthenticated ? (
-              <div className="flex items-center gap-4">
-                <WalletConnectButton />
-
-                {/* Profile Button - Only show if user is authenticated */}
-                <Button
-                  variant="ghost"
-                  onClick={handleProfile}
-                  className="h-8 w-8 p-0 flex items-center justify-center text-white hover:bg-white/10 rounded-full"
-                >
-                  <User className="h-5 w-5" />
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="h-8 w-8 p-0 flex items-center justify-center text-white hover:bg-white/10"
-                    >
-                      <Menu className="h-5 w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent className="w-56" align="end">
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="bg-[#182a3a] text-white text-xs">
-                            {displayInitial}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col leading-none">
-                          <span className="text-sm font-medium">
-                            {displayName}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {displayEmail}
-                          </span>
-                        </div>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-brand-blue text-white text-sm font-semibold">
+                          {displayInitial}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col leading-none">
+                        <span className="text-sm font-medium text-foreground">
+                          {displayName}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {displayEmail}
+                        </span>
                       </div>
-                    </DropdownMenuLabel>
+                    </div>
+                  </DropdownMenuLabel>
 
-                    <DropdownMenuSeparator />
+                  <DropdownMenuSeparator />
 
-                    <DropdownMenuItem onClick={handleProfile}>
-                      <User className="w-4 h-4 mr-2" /> Profile
-                    </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleProfile}
+                    className="text-foreground hover:bg-accent cursor-pointer"
+                  >
+                    <User className="w-4 h-4 mr-2" /> Profile
+                  </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={handleFavorites}>
-                      <Heart className="w-4 h-4 mr-2" /> Favorites
-                    </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleFavorites}
+                    className="text-foreground hover:bg-accent cursor-pointer"
+                  >
+                    <Heart className="w-4 h-4 mr-2" /> Favorites
+                  </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={handleMessages}>
-                      <MessageCircle className="w-4 h-4 mr-2" /> Messages
-                    </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleMessages}
+                    className="text-foreground hover:bg-accent cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" /> Messages
+                  </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={handleSettings}>
-                      <Settings className="w-4 h-4 mr-2" /> Settings
-                    </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleSettings}
+                    className="text-foreground hover:bg-accent cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4 mr-2" /> Settings
+                  </DropdownMenuItem>
 
-                    <DropdownMenuSeparator />
+                  {/* Become Host Menu Item - Only in dropdown for authenticated users */}
+                  <DropdownMenuItem
+                    onClick={handleHostDashboard}
+                    className="text-primary hover:bg-primary/10 cursor-pointer"
+                  >
+                    <Home className="w-4 h-4 mr-2" /> Become Host
+                  </DropdownMenuItem>
 
-                    <DropdownMenuItem
-                      onClick={handleDisconnect}
-                      className="text-red-600 focus:bg-red-100 focus:text-red-600"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" /> Disconnect
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ) : (
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate("/signin")}
-                  className="text-white hover:text-gray-200 hover:bg-white/10 font-medium"
-                >
-                  Sign In
-                </Button>
-                <Button
-                  onClick={() => navigate("/signup")}
-                  className="bg-white text-[#182a3a] hover:bg-gray-100 font-medium"
-                >
-                  Sign Up
-                </Button>
-              </div>
-            )}
-          </div>
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem
+                    onClick={handleDisconnect}
+                    className="text-destructive hover:bg-destructive/10 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" /> Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : (
+            // NOT AUTHENTICATED UI - Only Sign In and Sign Up
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/signin")}
+                className="text-white hover:bg-white/10 font-medium px-5 py-2 h-auto text-sm"
+              >
+                Sign In
+              </Button>
+              <Button
+                onClick={() => navigate("/signup")}
+                className="bg-brand-blue text-brand-dark hover:bg-cyan-400 font-bold px-6 py-2 h-auto text-sm shadow-[0_0_20px_rgba(45,212,191,0.3)] rounded-full transition-all hover:scale-105"
+              >
+                Sign Up
+              </Button>
+            </div>
+          )}
         </div>
       </nav>
 

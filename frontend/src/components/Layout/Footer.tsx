@@ -3,13 +3,13 @@ import Logo from "../Logo";
 
 const Footer = () => {
   return (
-    <footer className="bg-[#182a3a] border-t border-gray-600">
+    <footer className="bg-dark border-t border-gray-800">
       <div className="mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand Section */}
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center space-x-3">
-              <Logo size="lg" logocolor="white" textcolor="#ffffff" />
+              <Logo size="lg" textcolor="#ffffff" iconColor="#ffffff" />
             </div>
             <p className="text-gray-300 max-w-md text-sm leading-relaxed">
               Revolutionizing property rentals through blockchain technology.
@@ -44,8 +44,8 @@ const Footer = () => {
             </div>
           </div>
 
-          
-          
+
+
 
           {/* Legal */}
           <div className="space-y-4">
@@ -88,9 +88,9 @@ const Footer = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-gray-600 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+        <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <p className="text-sm text-gray-400">
-            &copy; {new Date().getFullYear()} RentChain. All rights reserved.
+            &copy; {new Date().getFullYear()} DecentRent. All rights reserved.
           </p>
         </div>
       </div>

@@ -1,21 +1,20 @@
 // src/components/Logo.tsx
-import LogoIcon from "@/assets/images/Logo.svg";
-import BlackLogo from "@/assets/images/Logo_black.svg";
+import { Building2 } from "lucide-react";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg";
   className?: string;
   showText?: boolean;
   textcolor?: string;
-  logocolor?: "white" | "black";
+  iconColor?: string;
 }
 
 const Logo = ({
   size = "md",
   className = "",
   showText = true,
-  textcolor = "#182a3a",
-  logocolor = "black",
+  textcolor,
+  iconColor,
 }: LogoProps) => {
   const sizeClasses = {
     sm: "h-6 w-6",
@@ -23,27 +22,27 @@ const Logo = ({
     lg: "h-12 w-12",
   };
 
-  // Decide which SVG to show
-  const chosenLogo = logocolor === "white" ? LogoIcon : BlackLogo;
+  const textSizes = {
+    sm: "text-base",
+    md: "text-xl",
+    lg: "text-2xl",
+  };
 
   return (
-    <div className={`flex items-center gap-1 ${className}`}>
-      <img
-        src={chosenLogo}
-        alt="RealChain Logo"
-        className={sizeClasses[size]}
-      />
+    <div className={`flex items-center gap-2 ${className}`}>
+      <div className={`flex items-center justify-center rounded-lg ${iconColor ? "" : "text-primary"}`}>
+        <Building2
+          className={sizeClasses[size]}
+          style={iconColor ? { color: iconColor } : {}}
+        />
+      </div>
 
       {showText && (
         <span
-          className="font-bold"
-          style={{
-            color: textcolor,
-            fontSize:
-              size === "lg" ? "1.5rem" : size === "md" ? "1.25rem" : "1rem",
-          }}
+          className={`font-bold tracking-tight ${textSizes[size]} ${textcolor ? "" : "text-primary"}`}
+          style={textcolor ? { color: textcolor } : {}}
         >
-          RealChain
+          DecentRent
         </span>
       )}
     </div>

@@ -1,25 +1,19 @@
 // src/pages/SignIn.tsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { useAuthStore } from "@/features/auth/store/authStore";
+import { Eye, EyeOff } from "lucide-react";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Logo from "@/components/Logo";
+import { AuthCarousel } from "../components/AuthCarousel";
 
 const SignIn = () => {
   const navigate = useNavigate();
   const { login, isLoading } = useAuthStore();
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -37,13 +31,19 @@ const SignIn = () => {
     }
 
     try {
-      const success = await login({
+      const user = await login({
         email: formData.email,
         password: formData.password,
       });
 
-      if (success) {
-        navigate("/browse_properties");
+      if (!user) return;
+
+      if (user?.roles?.includes("ADMIN") || user?.roles?.includes("AGENT")) {
+        navigate("/admin/dashboard", { replace: true });
+      } else if (user?.types?.includes("HOST")) {
+        navigate("/host/dashboard", { replace: true });
+      } else {
+        navigate("/properties", { replace: true });
       }
     } catch (error: any) {
       setError(error.message || "Login failed. Please try again.");
@@ -56,150 +56,124 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex">
-      {/* Left Section - Form */}
-      <div className="w-full lg:w-2/5 flex flex-col">
-        {/* Header with Logo */}
-        <div className="p-6">
-          <Logo size="lg" logocolor="black" />
-        </div>
+    <div className="h-screen w-full flex overflow-hidden bg-slate-50">
+      <AuthCarousel />
 
-        {/* Form Content */}
-        <div className="flex-1 flex items-center justify-center px-6 py-12">
-          <Card className="w-full max-w-md border-0 shadow-none">
-            <CardContent className="p-0">
-              <div className="text-center space-y-8">
-                <div className="space-y-2">
-                  <CardTitle className="text-3xl font-bold text-[#182a3a]">
-                    Sign In
-                  </CardTitle>
-                  <CardDescription className="text-lg">
-                    Sign in to your RealChain account
-                  </CardDescription>
-                </div>
-              </div>
+      {/* Right Section */}
+      <div
+        className="
+      w-full lg:w-1/2
+      relative z-10
+      flex items-center justify-center
+      p-6 bg-white
+      lg:-ml-24
+      rounded-l-[3rem]
+    "
+      >
+        <div className="w-full max-w-[500px] p-8 md:p-12 bg-white">
+          <div className="lg:hidden flex items-center gap-2 mb-8">
+            <Logo size="md" className="text-navy-deep" />
+          </div>
 
-              {/* Error Message */}
-              {error && (
-                <Alert variant="destructive" className="mt-6">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+          <div className="mb-8">
+            <h2 className="text-slate-900 tracking-tight text-3xl font-bold mb-2">Welcome back</h2>
+            <p className="text-slate-500 text-base">Enter your details to access your dashboard.</p>
+          </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6 mt-8">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-foreground">
-                    Email Address
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={(e) =>
-                        handleInputChange("email", e.target.value)
-                      }
-                      className="pl-10"
-                      placeholder="Enter your email"
-                    />
-                  </div>
-                </div>
+          {/* Error Message */}
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-foreground">
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      value={formData.password}
-                      onChange={(e) =>
-                        handleInputChange("password", e.target.value)
-                      }
-                      className="pl-10 pr-12"
-                      placeholder="Enter your password"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <div className="flex flex-col gap-1">
+              <Label className="text-slate-700 text-sm font-semibold ml-1" htmlFor="email">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                className="w-full rounded-xl h-12 px-4 bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-navy-deep focus:ring-2 focus:ring-navy-deep/20 transition-all"
+                placeholder="name@example.com"
+              />
+            </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="remember-me" />
-                    <Label
-                      htmlFor="remember-me"
-                      className="text-sm text-muted-foreground"
-                    >
-                      Remember me
-                    </Label>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-[#182a3a] hover:text-[#182a3a]/80 p-0 h-auto"
-                    onClick={() => navigate("/forgot-password")}
-                  >
-                    Forgot password?
-                  </Button>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-[#182a3a] text-white hover:bg-[#182a3a]/90 h-12 text-base"
-                  size="lg"
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between items-center ml-1">
+                <Label className="text-slate-700 text-sm font-semibold" htmlFor="password">
+                  Password
+                </Label>
+                <Link
+                  to="/forgot-password"
+                  className="text-navy-deep hover:text-navy-deep/80 text-xs font-semibold transition-colors"
                 >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Signing In...
-                    </div>
-                  ) : (
-                    "Sign In"
-                  )}
-                </Button>
+                  Forgot Password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={formData.password}
+                  onChange={(e) => handleInputChange("password", e.target.value)}
+                  className="w-full rounded-xl h-12 px-4 bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-navy-deep focus:ring-2 focus:ring-navy-deep/20 transition-all"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+            </div>
 
-                <div className="text-center">
-                  <span className="text-muted-foreground">
-                    Don't have an account?{" "}
-                    <Link
-                      to="/signup"
-                      className="text-[#182a3a] hover:text-[#182a3a]/80 font-semibold hover:underline"
-                    >
-                      Sign up
-                    </Link>
-                  </span>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="mt-2 w-full rounded-xl bg-navy-deep py-3.5 h-auto text-white text-base font-bold hover:bg-navy-deep/90 active:scale-[0.98] transition-all duration-200"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Signing In...
                 </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              ) : (
+                "Sign In to Account"
+              )}
+            </Button>
+          </form>
 
-      {/* Right Section - Image */}
-      <div className="hidden lg:block flex-1 bg-muted/50">
-        <img
-          src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-          alt="Luxury Interior"
-          className="w-full h-full object-cover"
-        />
+          <div className="mt-8 text-center">
+            <p className="text-sm text-slate-500">
+              Don't have an account?{" "}
+              <Link
+                to="/signup"
+                className="font-bold text-navy-deep hover:underline transition-all ml-1"
+              >
+                Create free account
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Footer Links */}
+        <div className="absolute bottom-6 flex gap-6 text-xs text-slate-400 font-medium">
+          <a href="#" className="hover:text-slate-600 transition-colors">
+            Privacy Policy
+          </a>
+          <a href="#" className="hover:text-slate-600 transition-colors">
+            Terms of Service
+          </a>
+        </div>
       </div>
     </div>
   );

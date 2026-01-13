@@ -1,10 +1,9 @@
 /**
- * GeoLocation Module Exports
+ * Geolocation Module Exports
  * Central export point for all geolocation utilities
  */
 
-export { useGeolocation } from "./useGeolocation";
-export { useGeolocationStore } from "./geolocationStore";
+export { useGeolocationStore } from "./geolocation.store";
 export {
   getCurrentLocation,
   reverseGeocode,
@@ -12,4 +11,4 @@ export {
   type LocationData,
   type LocationCoordinates,
   type GeolocationError,
-} from "./geolocationService";
+} from "./geolocation.service";
