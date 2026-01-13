@@ -38,25 +38,30 @@ public class SecurityConfig {
                         .requestMatchers("/type-caracteristiques").permitAll()         // GET all types
                         .requestMatchers("/type-caracteristiques/{id}").permitAll()    // GET type by ID
 
-                        // Owners - Vérification publique
-                        .requestMatchers("/owners/check/{userId}").permitAll()   // Check owner status
+                        // ✅ Owners - Vérification publique + Protected par Gateway
+                        .requestMatchers("/owners/check/{userId}").permitAll()         // Check owner status (public)
+                        .requestMatchers("/owners/{userId}").permitAll()               // Get owner (JWT via Gateway)
+                        .requestMatchers("/owners").permitAll()                        // Get all owners (ADMIN via Gateway)
 
+                        // Properties - Admin actions (Protected par RBAC Gateway)
                         .requestMatchers(HttpMethod.PATCH, "/properties/*/validate").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/properties/*/reject").permitAll()   // 👈 Ajoute ceci
+                        .requestMatchers(HttpMethod.POST, "/properties/*/reject").permitAll()
                         .requestMatchers(HttpMethod.GET, "/properties/pending").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/properties/*/submit").permitAll() // 👈 AJOUTEZ CETTE LIGNE
-                        .requestMatchers("/properties/my-properties").permitAll() // 👈 ADD THIS LINE
+
+                        // Properties - Owner actions (Protected par JWT Gateway)
+                        .requestMatchers(HttpMethod.POST, "/properties/*/submit").permitAll()
+                        .requestMatchers("/properties/my-properties").permitAll()
+
+                        // ========== IMAGES - UPLOAD ET GESTION ==========
+                        .requestMatchers(HttpMethod.POST, "/properties/*/images").permitAll()    // Upload images
+                        .requestMatchers(HttpMethod.DELETE, "/properties/*/images").permitAll()  // Delete images
+                        .requestMatchers(HttpMethod.GET, "/properties/*/images").permitAll()     // Get images
+
+                        // ========== COUNT ==========
+                        .requestMatchers("/properties/owner/*/count").permitAll()                // Count properties by owner
+
                         // ========== ROUTES PROTÉGÉES (Authentification JWT requise) ==========
                         // Toutes les autres routes nécessitent authentification
-
-
-                                // ========== IMAGES - UPLOAD ET GESTION ==========
-                                .requestMatchers(HttpMethod.POST, "/properties/*/images").permitAll()    // Upload images
-                                .requestMatchers(HttpMethod.DELETE, "/properties/*/images").permitAll()  // Delete images
-                                .requestMatchers(HttpMethod.GET, "/properties/*/images").permitAll()     // Get images
-
-// ========== COUNT ==========
-                                .requestMatchers("/properties/owner/*/count").permitAll()                // Count properties by owner
                         .anyRequest().authenticated()
                 )
 

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -81,19 +82,30 @@ public class JwtUtil {
     }
 
     /**
-     * Extrait les rôles du token
+     * ✅ Extrait les rôles du token (cherche directement "ADMIN", pas "ROLE_ADMIN")
      */
     @SuppressWarnings("unchecked")
     public List<String> getRolesFromToken(String token) {
         try {
             Claims claims = getAllClaims(token);
             Object rolesObj = claims.get("roles");
-            if (rolesObj instanceof List) {
-                return (List<String>) rolesObj;
+
+            if (rolesObj == null) {
+                System.out.println("⚠️ Aucun rôle trouvé dans le token");
+                return Collections.emptyList();
             }
-            System.out.println("⚠️ Aucun rôle trouvé dans le token");
-            return List.of();
+
+            if (rolesObj instanceof List) {
+                List<String> roles = (List<String>) rolesObj;
+                System.out.println("✅ Rôles extraits du token: " + roles);
+                return roles;
+            }
+
+            System.err.println("❌ Le champ 'roles' n'est pas une liste: " + rolesObj.getClass().getName());
+            return Collections.emptyList();
+
         } catch (JwtException e) {
+            System.err.println("❌ Erreur lors de l'extraction des rôles: " + e.getMessage());
             throw e;
         }
     }
@@ -110,7 +122,7 @@ public class JwtUtil {
                 return (List<String>) typesObj;
             }
             System.out.println("⚠️ Aucun type trouvé dans le token");
-            return List.of();
+            return Collections.emptyList();
         } catch (JwtException e) {
             throw e;
         }
@@ -178,7 +190,7 @@ public class JwtUtil {
     }
 
     /**
-     * Vérifie si l'utilisateur a un rôle spécifique
+     * ✅ Vérifie si l'utilisateur a un rôle spécifique (cherche "ADMIN", pas "ROLE_ADMIN")
      */
     public boolean hasRole(String token, String role) {
         try {
@@ -186,6 +198,8 @@ public class JwtUtil {
             boolean hasRole = roles != null && roles.contains(role);
             if (!hasRole) {
                 System.err.println("❌ Rôle requis '" + role + "' non trouvé. Rôles disponibles: " + roles);
+            } else {
+                System.out.println("✅ Rôle '" + role + "' trouvé dans le token");
             }
             return hasRole;
         } catch (JwtException e) {

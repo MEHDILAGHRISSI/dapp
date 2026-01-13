@@ -1,5 +1,6 @@
 package ma.fstt.listingservice.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -21,12 +22,16 @@ public class Owner implements Serializable {
     @Column(unique = true, length = 100)
     private String walletAddress; // Adresse blockchain pour les paiements
 
+    // ✅ CORRECTION #1: Ajout de @JsonIgnoreProperties pour éviter la boucle infinie
     // Relation One-to-Many avec Property
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("owner")  // ⬅️ Cette annotation évite la sérialisation récursive
     private List<PropertyEntity> properties = new ArrayList<>();
 
+    // ✅ CORRECTION #2: Même annotation pour les PaymentMethods
     // Relation One-to-Many avec PaymentMethod
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("owner")  // ⬅️ Protection contre la boucle infinie
     private List<PaymentMethod> paymentMethods = new ArrayList<>();
 
     // Getters and Setters

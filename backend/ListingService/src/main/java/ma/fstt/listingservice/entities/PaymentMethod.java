@@ -1,5 +1,6 @@
 package ma.fstt.listingservice.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -14,8 +15,10 @@ public class PaymentMethod implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // ✅ CORRECTION: Ajout de @JsonIgnoreProperties pour éviter la boucle Owner → PaymentMethod → Owner
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
+    @JsonIgnoreProperties({"properties", "paymentMethods"})  // ⬅️ Ignore les collections de l'owner
     private Owner owner;
 
     @Column(nullable = false, length = 50)
@@ -40,7 +43,7 @@ public class PaymentMethod implements Serializable {
     private String paypalEmail;
 
     @Column(length = 50)
-    private String bankAccountNumber; // Chiffre ou masque
+    private String bankAccountNumber; // Chiffré ou masqué
 
     @Column(nullable = false)
     private Boolean isDefault = false;

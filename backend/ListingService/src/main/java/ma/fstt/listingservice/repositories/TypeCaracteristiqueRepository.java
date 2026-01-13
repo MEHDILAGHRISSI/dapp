@@ -9,5 +9,6 @@ import java.util.Optional;
 @Repository
 public interface TypeCaracteristiqueRepository extends JpaRepository<TypeCharacteristique, Long> {
 
+
     Optional<TypeCharacteristique> findByName(String name);
 }
