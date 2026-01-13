@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class BookingResponseDTO {
 
     private Long id;
-    private Long propertyId;
+    private String propertyId;
     private String  tenantId;
     private LocalDate startDate;
     private LocalDate endDate;

@@ -21,6 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -490,5 +493,45 @@ public class PropertyServiceImpl implements PropertyService {
         }
 
         return dto;
+    }
+
+    @Override
+    public PropertyDto addImagesToProperty(String propertyId, List<String> newImagePaths, String userId) {
+        log.info("🖼️ Adding {} images to property {}", newImagePaths.size(), propertyId);
+
+        // 1. Récupérer la propriété par propertyId (String)
+        PropertyEntity propertyEntity = propertyRepository.findByPropertyId(propertyId);
+
+        if (propertyEntity == null) {
+            throw new RuntimeException("Property not found with id: " + propertyId);
+        }
+
+        // 2. Vérifier ownership
+        if (!propertyEntity.getOwnerId().equals(userId)) {
+            log.error("❌ User {} is not the owner of property {}", userId, propertyId);
+            throw new RuntimeException("You are not authorized to modify this property");
+        }
+
+        // 3. Récupérer ou créer la liste d'images
+        List<String> currentImages = propertyEntity.getImageFolderPath();
+        if (currentImages == null) {
+            currentImages = new ArrayList<>();
+            log.info("📝 No existing images, creating new list");
+        } else {
+            log.info("📝 Found {} existing images", currentImages.size());
+        }
+
+        // 4. Ajouter les nouvelles images
+        currentImages.addAll(newImagePaths);
+        propertyEntity.setImageFolderPath(currentImages);
+
+        // 5. Sauvegarder
+        PropertyEntity updatedProperty = propertyRepository.save(propertyEntity);
+
+        log.info("✅ Successfully added {} new images. Total: {}",
+                newImagePaths.size(), updatedProperty.getImageFolderPath().size());
+
+        // 6. Convertir et retourner
+        return convertToDto(updatedProperty);
     }
 }

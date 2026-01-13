@@ -6,6 +6,8 @@ import ma.fstt.listingservice.requests.PropertyStatusRequest;
 import ma.fstt.listingservice.responses.PropertyResponse;
 import ma.fstt.listingservice.services.PropertyService;
 import ma.fstt.listingservice.services.impl.PropertyServiceImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -16,6 +18,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import ma.fstt.listingservice.responses.AddImagesResponse;
+import ma.fstt.listingservice.services.impl.ImageStorageService;
+import org.springframework.http.MediaType;
+
+import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,6 +44,12 @@ public class PropertyController {
 
     @Autowired
     private PropertyService propertyService;
+
+    @Autowired
+    private ImageStorageService imageStorageService;
+
+    private static final Logger log = LoggerFactory.getLogger(PropertyController.class);
+
 
     @PostMapping
     public ResponseEntity<Map<String, Object>> createProperty(
@@ -457,4 +472,76 @@ public class PropertyController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
+
+
+    @PostMapping(value = "/{propertyId}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> addImagesToProperty(
+            @PathVariable String propertyId,
+            @RequestParam("images") List<MultipartFile> images,
+            @RequestHeader("X-User-Id") String userId) {
+
+        try {
+            log.info("📸 Request to add {} images to property {}", images.size(), propertyId);
+
+            // 1. Vérifier que des images sont fournies
+            if (images == null || images.isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "No images provided");
+                return ResponseEntity.badRequest().body(error);
+            }
+
+            // 2. Vérifier que la propriété existe et que l'utilisateur en est le propriétaire
+            // (Cette vérification sera aussi faite dans le service, mais on récupère les infos)
+            PropertyDto property = propertyService.getPropertyByPropertyId(propertyId);
+
+            if (!property.getUserId().equals(userId)) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "You are not authorized to modify this property");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+            }
+
+            // 3. Stocker les nouvelles images sur S3
+            List<String> newImageUrls = imageStorageService.storeImages(propertyId, images);
+            log.info("✅ {} images uploaded to S3", newImageUrls.size());
+
+            // 4. Mettre à jour la propriété avec les nouvelles images
+            PropertyDto updatedProperty = propertyService.addImagesToProperty(
+                    propertyId,
+                    newImageUrls,
+                    userId
+            );
+
+            // 5. Construire la réponse
+            AddImagesResponse response = AddImagesResponse.builder()
+                    .message("Images added successfully")
+                    .propertyId(propertyId)
+                    .addedImages(newImageUrls)
+                    .allImages(updatedProperty.getImageFolderPath())
+                    .totalImages(updatedProperty.getImageFolderPath().size())
+                    .build();
+
+            log.info("✅ Successfully added {} images to property {}. Total: {}",
+                    newImageUrls.size(), propertyId, response.getTotalImages());
+
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+            log.error("❌ Error adding images to property {}: {}", propertyId, e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+
+            HttpStatus status = e.getMessage().contains("not found")
+                    ? HttpStatus.NOT_FOUND
+                    : HttpStatus.BAD_REQUEST;
+
+            return ResponseEntity.status(status).body(error);
+
+        } catch (Exception e) {
+            log.error("❌ Unexpected error adding images to property {}", propertyId, e);
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Error uploading images: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
 }

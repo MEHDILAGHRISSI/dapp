@@ -12,5 +12,5 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface ListingServiceClient {
 
     @GetMapping("/properties/{id}")
-    PropertyDTO getProperty(@PathVariable("id") Long id);
+    PropertyDTO getProperty(@PathVariable("id") String id); // Changé Long -> String
 }

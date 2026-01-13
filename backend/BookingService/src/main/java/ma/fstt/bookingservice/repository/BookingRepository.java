@@ -15,8 +15,8 @@ import java.util.List;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     /**
-     * Trouve les réservations dans un statut donné créées avant une certaine date.
-     * Utilisé par le scheduler pour trouver les réservations AWAITING_PAYMENT expirées.
+     * Trouve les reservations dans un statut donne creees avant une certaine date.
+     * Utilise par le scheduler pour trouver les reservations AWAITING_PAYMENT expirees.
      */
     List<Booking> findByStatusAndCreatedAtBefore(BookingStatus status, LocalDateTime createdAt);
 
@@ -30,7 +30,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             "AND b.startDate < :endDate " +
             "AND b.endDate > :startDate")
     List<Booking> findOverlappingBookings(
-            @Param("propertyId") Long propertyId,
+            @Param("propertyId") String propertyId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             @Param("statuses") List<BookingStatus> statuses
@@ -38,36 +38,23 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByTenantId(String tenantId);
 
-    List<Booking> findByPropertyId(Long propertyId);
+    // ✅ FIX: Changed from Long to String to match PropertyEntity.propertyId type
+    List<Booking> findByPropertyId(String propertyId);
+
 
     /**
-     * ⚠️ ATTENTION: Cette query NE PEUT PAS fonctionner car Booking n'a pas de relation @ManyToOne avec Property!
-     * Booking a seulement propertyId (Long), pas d'objet Property.
+     * ✅ CRITICAL FIX: Changed @Param("propertyId") from Long to String
+     * This matches the PropertyEntity.propertyId type in listing-service
      *
-     * SOLUTION: On ne peut pas compter directement via cette query.
-     * Il faut soit:
-     * 1. Ajouter une relation @ManyToOne dans Booking vers Property (pas recommandé - microservices)
-     * 2. Faire la vérification différemment dans le service
-     *
-     * Pour l'instant, on retourne toujours 0 (pas de réservations futures)
-     * Cette méthode sera implémentée dans le service avec un appel à ListingService
-     */
-    // ❌ CETTE QUERY NE FONCTIONNE PAS:
-    // @Query("SELECT COUNT(b) FROM Booking b WHERE b.property.owner.userId = :hostId AND b.startDate > :today")
-    // Long countByPropertyOwnerIdAndStartDateAfter(@Param("hostId") String hostId, @Param("today") LocalDate today);
-
-    /**
-     * ✅ WORKAROUND: Compter les réservations futures par propertyId
-     * Le service fera d'abord un appel à ListingService pour récupérer les propertyIds du host
+     * WORKAROUND: Compter les reservations futures par propertyId
+     * Le service fera d'abord un appel a ListingService pour recuperer les propertyIds du host
      */
     @Query("SELECT COUNT(b) FROM Booking b WHERE b.propertyId = :propertyId AND b.startDate > :today")
-    Long countFutureBookingsByPropertyId(@Param("propertyId") Long propertyId, @Param("today") LocalDate today);
+    Long countFutureBookingsByPropertyId(@Param("propertyId") String propertyId, @Param("today") LocalDate today);
 
     /**
-     * ✅ Compter les réservations actives d'un client
+     * ✅ Compter les reservations actives d'un client
      * ATTENTION: Utilise seulement CONFIRMED (ONGOING n'existe pas dans BookingStatus!)
      */
     Long countByTenantIdAndStatusIn(String tenantId, List<BookingStatus> statuses);
-
-
 }

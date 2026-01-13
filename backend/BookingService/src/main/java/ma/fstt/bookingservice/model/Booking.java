@@ -27,7 +27,7 @@ public class Booking {
     private Long id;
 
     @Column(nullable = false)
-    private Long propertyId;
+    private String propertyId;
 
     @Column(nullable = false, length = 255)
     private String tenantId;

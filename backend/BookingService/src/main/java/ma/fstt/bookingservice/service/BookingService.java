@@ -49,7 +49,7 @@ public class BookingService {
     private String createdRoutingKey;
 
     /**
-     * ✅ MODIFIÉ : Récupération automatique du wallet + String tenantId
+     * ✅ MODIFIÉ : Récupération automatique du wallet + String tenantId + String propertyId
      * Trust-But-Verify Pattern: Create Booking with strict validation
      * État final : AWAITING_PAYMENT
      */
@@ -68,6 +68,7 @@ public class BookingService {
         checkAvailability(request.getPropertyId(), request.getStartDate(), request.getEndDate());
 
         // Step 3: Fetch Current Price from ListingService (Snapshot Pattern + Circuit Breaker)
+        // ✅ CORRECTION: Passer directement le String propertyId (pas de conversion en Long)
         PropertyDTO property = fetchPropertyPricing(request.getPropertyId());
 
         // Step 4: Calculate Total Price
@@ -79,7 +80,7 @@ public class BookingService {
 
         // Step 5: Create Booking with AWAITING_PAYMENT status
         Booking booking = Booking.builder()
-                .propertyId(request.getPropertyId())
+                .propertyId(request.getPropertyId())  // ✅ String propertyId
                 .tenantId(tenantId)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
@@ -253,7 +254,10 @@ public class BookingService {
         }
     }
 
-    private void checkAvailability(Long propertyId, LocalDate startDate, LocalDate endDate) {
+    /**
+     * ✅ CORRECTION: propertyId est maintenant un String
+     */
+    private void checkAvailability(String propertyId, LocalDate startDate, LocalDate endDate) {
         // On considère aussi AWAITING_PAYMENT comme "bloquant"
         List<BookingStatus> activeStatuses = List.of(
                 BookingStatus.AWAITING_PAYMENT,
@@ -273,11 +277,11 @@ public class BookingService {
     }
 
     /**
-     * ✅ Fetch property pricing avec Circuit Breaker
+     * ✅ CORRECTION: Fetch property pricing avec String propertyId
      * 🔄 PROTECTION : Circuit Breaker pour gérer l'indisponibilité de ListingService
      */
     @CircuitBreaker(name = "listingService", fallbackMethod = "getPropertyFallback")
-    private PropertyDTO fetchPropertyPricing(Long propertyId) {
+    private PropertyDTO fetchPropertyPricing(String propertyId) {
         try {
             PropertyDTO property = listingServiceClient.getProperty(propertyId);
 
@@ -297,10 +301,11 @@ public class BookingService {
     }
 
     /**
-     * ✅ FALLBACK : Méthode de secours si ListingService est indisponible
+     * ✅ CORRECTION: FALLBACK avec String propertyId
+     * Méthode de secours si ListingService est indisponible
      * Appelée automatiquement par le Circuit Breaker
      */
-    private PropertyDTO getPropertyFallback(Long propertyId, Exception e) {
+    private PropertyDTO getPropertyFallback(String propertyId, Exception e) {
         log.error("❌ ListingService circuit breaker activated for property {}: {}",
                 propertyId, e.getMessage());
         throw new ServiceUnavailableException(
@@ -369,9 +374,9 @@ public class BookingService {
         /* ALTERNATIVE: Appeler ListingService pour récupérer les propertyIds
         try {
             // 1. Récupérer toutes les properties du host via ListingService
-            List<Long> propertyIds = listingServiceClient.getPropertiesByOwner(hostId)
+            List<String> propertyIds = listingServiceClient.getPropertiesByOwner(hostId)
                     .stream()
-                    .map(PropertyDTO::getId)
+                    .map(PropertyDTO::getPropertyId)
                     .toList();
 
             if (propertyIds.isEmpty()) {
@@ -381,7 +386,7 @@ public class BookingService {
             // 2. Compter les bookings futurs pour ces properties
             LocalDate today = LocalDate.now();
             long count = 0L;
-            for (Long propertyId : propertyIds) {
+            for (String propertyId : propertyIds) {
                 count += bookingRepository.countFutureBookingsByPropertyId(propertyId, today);
             }
             return count;

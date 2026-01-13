@@ -222,6 +222,14 @@ public class GatewayConfig {
                                 .filter(jwtAuthenticationFilter))
                         .uri(listingServiceUrl))
 
+                .route("listing_add_property_images", r -> r
+                        .path("/api/listings/properties/{propertyId}/images")
+                        .and().method("POST")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .filter(jwtAuthenticationFilter))
+                        .uri(listingServiceUrl))
+
                 .route("listing_update_property", r -> r
                         .path("/api/listings/properties/{propertyId}")
                         .and().method("PUT")

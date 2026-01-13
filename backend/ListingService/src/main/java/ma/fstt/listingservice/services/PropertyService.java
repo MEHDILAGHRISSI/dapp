@@ -64,4 +64,7 @@ public interface PropertyService {
     PropertyDto submitPropertyForValidation(String propertyId);
 
     PropertyDto validateProperty(String propertyId);
+
+    PropertyDto addImagesToProperty(String propertyId, List<String> newImagePaths, String userId);
+
 }
