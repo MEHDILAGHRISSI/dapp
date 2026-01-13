@@ -6,13 +6,13 @@ FROM node:20.19.5-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first (package.json + package-lock.json)
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (use npm install if lock file is outdated)
+RUN npm install
 
-# Copy source files
+# Copy the rest of the source code
 COPY . .
 
 # Build the React app (Vite)
