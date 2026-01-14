@@ -17,6 +17,8 @@ public class PropertyDto implements Serializable {
     private String title;
     private String type;
 
+    private String description;
+
     // Location
     private Double latitude;
     private Double longitude;
@@ -261,5 +263,14 @@ public class PropertyDto implements Serializable {
 
     public void setCharacteristics(List<CharacteristicDto> characteristics) {
         this.characteristics = characteristics;
+    }
+
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

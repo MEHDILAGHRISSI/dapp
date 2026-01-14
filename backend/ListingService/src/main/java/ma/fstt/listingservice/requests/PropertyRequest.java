@@ -22,7 +22,7 @@ public class PropertyRequest {
     private String codePostale;
 
     @NotBlank(message = "Description is required")
-    @Size(min = 50, max = 2000, message = "Description must be between 50 and 2000 characters")
+    @Size(min = 5, max = 2000, message = "Description must be between 5 and 2000 characters")
     private String description;
 
     // Pricing

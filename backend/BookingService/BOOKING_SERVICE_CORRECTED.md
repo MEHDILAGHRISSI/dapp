@@ -1,441 +1,351 @@
-# 📅 BOOKING SERVICE - Documentation Frontend (CORRIGÉE v2.0)
+# Booking Service - API Documentation
 
-**Base URL** : `http://localhost:8082/api/bookings`
+## Table des matières
 
-> ⚠️ **Version corrigée** - Cette documentation reflète exactement le code source du backend.
-
----
-
-## 📊 Schéma Base de Données
-
-### Table: `bookings`
-
-| Champ | Type | Description | Obligatoire | Unique |
-|-------|------|-------------|-------------|--------|
-| `id` | Long | ID auto-incrémenté | ✅ | ✅ |
-| `propertyId` | **Long** | **ID de la propriété (pas UUID)** | ✅ | ❌ |
-| `tenantId` | String(255) | UUID du locataire | ✅ | ❌ |
-| `startDate` | Date | Date début (check-in) | ✅ | ❌ |
-| `endDate` | Date | Date fin (check-out) | ✅ | ❌ |
-| `status` | Enum | Statut de la réservation | ✅ | ❌ |
-| `tenantWalletAddress` | String(42) | Wallet du locataire (snapshot) | ✅ | ❌ |
-| `pricePerNight` | Decimal(19,2) | Prix par nuit (snapshot) | ✅ | ❌ |
-| `totalPrice` | Decimal(19,2) | Prix total (calculé) | ✅ | ❌ |
-| `currency` | String(10) | Devise (USD, MAD, etc.) | ✅ | ❌ |
-| `createdAt` | DateTime | Date de création | ✅ | ❌ |
-| `updatedAt` | DateTime | Dernière modification | ✅ | ❌ |
+1. [Introduction](#introduction)
+2. [Authentication](#authentication)
+3. [Endpoints](#endpoints)
+4. [Data Models](#data-models)
+5. [Error Handling](#error-handling)
+6. [Integration Examples](#integration-examples)
 
 ---
 
-## 📋 Enum BookingStatus
+## Introduction
 
-> ⚠️ **IMPORTANT** : Le statut `PENDING` existe dans l'enum mais **n'est jamais utilisé** dans le code actuel.
+Le **Booking Service** gère toutes les opérations liées aux réservations de propriétés. Il permet aux utilisateurs de créer, consulter, et annuler leurs réservations.
 
-```
-PENDING          → ⚠️ Non utilisé (état transitoire théorique)
-AWAITING_PAYMENT → En attente de paiement (15 min timeout)
-CONFIRMED        → Paiement validé
-CANCELLED        → Annulation manuelle
-EXPIRED          → Timeout de paiement
-```
+**Base URL via Gateway**: `/api/bookings`
 
-### Machine à États RÉELLE
-
-```
-         ┌─────────────────────────────────────┐
-         │     CRÉER BOOKING (POST)            │
-         └──────────────┬──────────────────────┘
-                        │ (Validation OK)
-                        ▼
-           ┌────────────────────────┐
-           │   AWAITING_PAYMENT     │  (15 min timeout)
-           └────┬──────────┬────────┘
-                │          │
-      (Paiement)│          │(Timeout/Annulation)
-                ▼          ▼
-          ┌──────────┐  ┌──────────┐
-          │CONFIRMED │  │ EXPIRED  │
-          └──────────┘  │CANCELLED │
-                        └──────────┘
-```
-
-### Statuts
-
-| Statut | Description | Durée | Actions Possibles |
-|--------|-------------|-------|-------------------|
-| `PENDING` | ⚠️ **Non utilisé** | - | - |
-| `AWAITING_PAYMENT` | Snapshot pris, en attente paiement | 15 min | Payer, Annuler |
-| `CONFIRMED` | Paiement validé | Permanent | Annuler (si futur) |
-| `CANCELLED` | Annulée manuellement | Permanent | Aucune |
-| `EXPIRED` | Timeout de paiement (auto) | Permanent | Aucune |
+**Service direct** (développement uniquement): `http://localhost:8083/bookings`
 
 ---
 
-## 🔒 Endpoints Protégés
+## Authentication
 
-**Tous les endpoints nécessitent un JWT**
+### Headers requis
 
-```http
-Authorization: Bearer <token>
-```
+Tous les endpoints (sauf mention contraire) nécessitent une authentification JWT.
+
+| Header | Valeur | Obligatoire | Description |
+|--------|--------|-------------|-------------|
+| `Authorization` | `Bearer {token}` | ✅ Oui | Token JWT obtenu lors de la connexion |
+| `X-User-Id` | `{uuid}` | ✅ Oui | UUID de l'utilisateur (injecté automatiquement par la Gateway) |
+| `Content-Type` | `application/json` | ✅ Oui (POST/PATCH) | Type de contenu |
+
+> **Note** : Le header `X-User-Id` est automatiquement ajouté par la Gateway après validation du JWT. Le frontend n'a pas besoin de le fournir.
 
 ---
 
-### 1. Créer une Réservation
+## Endpoints
 
-**Créer une nouvelle réservation**
+### 1. Créer une réservation
 
+Crée une nouvelle réservation avec le statut initial `AWAITING_PAYMENT`.
+
+**Endpoint**
 ```http
 POST /api/bookings
-Authorization: Bearer <token>
-Content-Type: application/json
 ```
 
 **Request Body**
+
 ```json
 {
-  "propertyId": 1,
-  "startDate": "2026-02-01",
-  "endDate": "2026-02-05"
+  "propertyId": "550e8400-e29b-41d4-a716-446655440001",
+  "startDate": "2026-02-15",
+  "endDate": "2026-02-22"
 }
 ```
 
-**⚠️ ATTENTION - Changements par rapport à la doc initiale** :
-- `propertyId` : **Long** (ex: 1, 2, 3), **PAS UUID** ❗
-- `checkInDate` n'existe pas → Utiliser `startDate`
-- `checkOutDate` n'existe pas → Utiliser `endDate`
-- `numberOfGuests` n'existe pas → Supprimé
+**Champs de la requête**
 
-**Validation**
-- `propertyId` : Long requis, doit exister et être `ACTIVE`
-- `startDate` : Date requise, doit être dans le futur
-- `endDate` : Date requise, doit être après `startDate`
-- Utilisateur doit avoir un wallet connecté
+| Champ | Type | Obligatoire | Format | Description |
+|-------|------|-------------|--------|-------------|
+| `propertyId` | String | ✅ Oui | UUID | Identifiant unique de la propriété |
+| `startDate` | String | ✅ Oui | `YYYY-MM-DD` | Date de début de la réservation |
+| `endDate` | String | ✅ Oui | `YYYY-MM-DD` | Date de fin de la réservation |
 
-**Response 201 Created**
+**Validations**
+
+- ✅ `propertyId` ne doit pas être null
+- ✅ `startDate` ne doit pas être null et doit être une date valide
+- ✅ `endDate` ne doit pas être null et doit être une date valide
+- ✅ `startDate` doit être avant `endDate`
+- ✅ L'utilisateur doit avoir un wallet connecté
+
+**Response Success (201 Created)**
+
 ```json
 {
-  "id": 1,
-  "propertyId": 1,
-  "tenantId": "660e8400-e29b-41d4-a716-446655440000",
-  "startDate": "2026-02-01",
-  "endDate": "2026-02-05",
+  "id": 42,
+  "propertyId": "550e8400-e29b-41d4-a716-446655440001",
+  "tenantId": "550e8400-e29b-41d4-a716-446655440000",
+  "startDate": "2026-02-15",
+  "endDate": "2026-02-22",
   "status": "AWAITING_PAYMENT",
-  "tenantWalletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-  "pricePerNight": 1500.00,
-  "totalPrice": 6000.00,
-  "currency": "MAD",
-  "createdAt": "2026-01-11T10:30:00",
-  "updatedAt": "2026-01-11T10:30:00"
+  "tenantWalletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+  "pricePerNight": 150.00,
+  "totalPrice": 1050.00,
+  "currency": "MATIC",
+  "createdAt": "2026-01-14T14:30:00",
+  "updatedAt": "2026-01-14T14:30:00"
 }
 ```
 
-**⚠️ Champs NON retournés** (calculs frontend) :
-- `numberOfNights` : Calculer `(endDate - startDate)` côté frontend
-- `expiresAt` : Calculer `createdAt + 15 minutes` côté frontend
+**Champs de la réponse**
 
-**Response 400 Bad Request**
+| Champ | Type | Description |
+|-------|------|-------------|
+| `id` | Long | Identifiant unique de la réservation (à conserver pour le paiement) |
+| `propertyId` | String | UUID de la propriété réservée |
+| `tenantId` | String | UUID du locataire (utilisateur connecté) |
+| `startDate` | String | Date de début (ISO 8601) |
+| `endDate` | String | Date de fin (ISO 8601) |
+| `status` | Enum | Statut de la réservation (voir [Statuts](#statuts-de-réservation)) |
+| `tenantWalletAddress` | String | Adresse MetaMask du locataire (format 0x...) |
+| `pricePerNight` | BigDecimal | Prix par nuit en MATIC |
+| `totalPrice` | BigDecimal | **Montant total à payer** (utilisé pour la blockchain) |
+| `currency` | String | Devise (`MATIC`, `USDC`, etc.) |
+| `createdAt` | DateTime | Date de création |
+| `updatedAt` | DateTime | Date de dernière modification |
+
+**Erreurs possibles**
+
+| Code | Message | Description | Solution |
+|------|---------|-------------|----------|
+| `400` | `Wallet Not Connected` | L'utilisateur n'a pas connecté son wallet MetaMask | Connecter le wallet avant de réserver |
+| `400` | `Property ID is required` | Le champ propertyId est manquant | Fournir un propertyId valide |
+| `400` | `Start date is required` | Le champ startDate est manquant | Fournir une date de début |
+| `400` | `End date is required` | Le champ endDate est manquant | Fournir une date de fin |
+| `401` | `Unauthorized` | Token JWT invalide ou manquant | Se reconnecter |
+| `404` | `Property not found` | La propriété n'existe pas | Vérifier l'ID de la propriété |
+| `409` | `Property not available` | La propriété n'est pas disponible pour ces dates | Choisir d'autres dates |
+
+**Exemple d'erreur**
+
 ```json
 {
-  "timestamp": "2026-01-11T10:30:00",
-  "status": 400,
-  "error": "Bad Request",
-  "message": "Start date must be in the future"
-}
-```
-
-**Response 409 Conflict**
-```json
-{
-  "timestamp": "2026-01-11T10:30:00",
-  "status": 409,
-  "error": "Conflict",
-  "message": "Property already booked for these dates"
-}
-```
-
-**Response 403 Forbidden**
-```json
-{
-  "timestamp": "2026-01-11T10:30:00",
+  "timestamp": "2026-01-14T14:30:00",
   "status": 400,
   "error": "Wallet Not Connected",
-  "message": "You must connect your wallet before creating a booking. Please go to your profile settings and connect your Web3 wallet (MetaMask, etc.)"
+  "message": "Please connect your MetaMask wallet before booking"
 }
 ```
-
-**Logique Métier**
-
-1. **Récupération Informations Utilisateur**
-   - Extraction `tenantId` depuis JWT (X-User-Id)
-   - Appel synchrone Auth Service pour récupérer wallet :
-     ```http
-     GET http://auth-service:8080/users/{tenantId}/wallet/status
-     ```
-   - Si pas de wallet → Erreur 400
-
-2. **Validation Propriété**
-   - Appel synchrone Listing Service :
-     ```http
-     GET http://listing-service:8081/properties/{propertyId}
-     ```
-   - Vérification status = `ACTIVE`
-   - Récupération `pricePerNight`
-
-3. **Vérification Disponibilité**
-   ```sql
-   SELECT COUNT(*) FROM bookings 
-   WHERE propertyId = ? 
-   AND status IN ('AWAITING_PAYMENT', 'CONFIRMED')
-   AND (
-     (startDate <= ? AND endDate > ?) OR
-     (startDate < ? AND endDate >= ?) OR
-     (startDate >= ? AND endDate <= ?)
-   )
-   ```
-   Si count > 0 → Refusé (409 Conflict)
-
-4. **Création Booking** (Status: AWAITING_PAYMENT directement)
-   - Calcul `totalPrice = pricePerNight * (endDate - startDate)`
-   - Sauvegarde snapshot immutable :
-     - `pricePerNight`
-     - `tenantWalletAddress`
-   - Status : **`AWAITING_PAYMENT`** (pas PENDING !)
-   - Génération timestamp expiration interne (now + 15 min)
-
-5. **Retour Frontend**
-   - Frontend reçoit booking avec `createdAt`
-   - Frontend calcule `expiresAt = createdAt + 15 min`
-   - Frontend doit initier paiement avant expiration
 
 ---
 
-### 2. Mes Réservations
+### 2. Annuler une réservation
 
-**Récupérer toutes les réservations du locataire connecté**
+Annule une réservation existante. Seul le propriétaire de la réservation peut l'annuler.
 
+**Endpoint**
 ```http
-GET /api/bookings/my-bookings
-Authorization: Bearer <token>
+PATCH /api/bookings/{bookingId}/cancel
 ```
 
-**Response 200 OK**
+**Path Parameters**
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `bookingId` | Long | Identifiant de la réservation à annuler |
+
+**Request Body**
+
+Aucun body requis.
+
+**Response Success (200 OK)**
+
+```json
+{
+  "id": 42,
+  "propertyId": "550e8400-e29b-41d4-a716-446655440001",
+  "tenantId": "550e8400-e29b-41d4-a716-446655440000",
+  "startDate": "2026-02-15",
+  "endDate": "2026-02-22",
+  "status": "CANCELLED",
+  "totalPrice": 1050.00,
+  "currency": "MATIC",
+  "updatedAt": "2026-01-14T15:00:00"
+}
+```
+
+**Erreurs possibles**
+
+| Code | Message | Description | Solution |
+|------|---------|-------------|----------|
+| `401` | `Unauthorized` | Token JWT invalide | Se reconnecter |
+| `403` | `Forbidden` | Vous n'êtes pas le propriétaire de cette réservation | Seul le locataire peut annuler |
+| `404` | `Booking not found` | La réservation n'existe pas | Vérifier l'ID |
+
+---
+
+### 3. Récupérer mes réservations
+
+Liste toutes les réservations de l'utilisateur connecté.
+
+**Endpoint**
+```http
+GET /api/bookings/my-bookings
+```
+
+**Query Parameters**
+
+Aucun.
+
+**Response Success (200 OK)**
+
 ```json
 [
   {
-    "id": 1,
-    "propertyId": 1,
-    "tenantId": "660e8400-e29b-41d4-a716-446655440000",
-    "startDate": "2026-02-01",
-    "endDate": "2026-02-05",
-    "status": "CONFIRMED",
-    "tenantWalletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-    "pricePerNight": 1500.00,
-    "totalPrice": 6000.00,
-    "currency": "MAD",
-    "createdAt": "2026-01-11T10:30:00",
-    "updatedAt": "2026-01-11T10:32:00"
+    "id": 42,
+    "propertyId": "550e8400-e29b-41d4-a716-446655440001",
+    "tenantId": "550e8400-e29b-41d4-a716-446655440000",
+    "startDate": "2026-02-15",
+    "endDate": "2026-02-22",
+    "status": "AWAITING_PAYMENT",
+    "tenantWalletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+    "pricePerNight": 150.00,
+    "totalPrice": 1050.00,
+    "currency": "MATIC",
+    "createdAt": "2026-01-14T14:30:00",
+    "updatedAt": "2026-01-14T14:30:00"
   },
   {
-    "id": 2,
-    "propertyId": 3,
-    "tenantId": "660e8400-e29b-41d4-a716-446655440000",
-    "startDate": "2026-03-15",
-    "endDate": "2026-03-20",
-    "status": "AWAITING_PAYMENT",
-    "tenantWalletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-    "pricePerNight": 500.00,
-    "totalPrice": 2500.00,
-    "currency": "MAD",
-    "createdAt": "2026-01-11T11:00:00",
-    "updatedAt": "2026-01-11T11:00:00"
+    "id": 41,
+    "propertyId": "550e8400-e29b-41d4-a716-446655440002",
+    "tenantId": "550e8400-e29b-41d4-a716-446655440000",
+    "startDate": "2026-01-20",
+    "endDate": "2026-01-25",
+    "status": "CONFIRMED",
+    "totalPrice": 800.00,
+    "currency": "MATIC",
+    "createdAt": "2026-01-10T10:00:00"
   }
 ]
 ```
 
-**⚠️ IMPORTANT** : Le service ne retourne **PAS** les détails de propriété !
-
-Les champs suivants **n'existent pas** dans la réponse :
-- ❌ `propertyTitle`
-- ❌ `propertyAddress`
-- ❌ `propertyImage`
-- ❌ `expiresAt`
-- ❌ `numberOfNights`
-
-**Enrichissement Frontend REQUIS** :
+**Filtrage côté frontend**
 
 ```javascript
-const bookings = await fetch('/api/bookings/my-bookings', {
-  headers: { 'Authorization': `Bearer ${token}` }
-});
+// Filtrer par statut
+const awaitingPayment = bookings.filter(b => b.status === 'AWAITING_PAYMENT');
+const confirmed = bookings.filter(b => b.status === 'CONFIRMED');
+const cancelled = bookings.filter(b => b.status === 'CANCELLED');
 
-const enrichedBookings = await Promise.all(
-  bookings.map(async (booking) => {
-    // 1. Récupérer détails propriété
-    const property = await fetch(
-      `/api/listings/properties/${booking.propertyId}`,
-      { headers: { 'Authorization': `Bearer ${token}` } }
-    );
-    
-    // 2. Calculer champs dérivés
-    const start = new Date(booking.startDate);
-    const end = new Date(booking.endDate);
-    const numberOfNights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    
-    const created = new Date(booking.createdAt);
-    const expiresAt = new Date(created.getTime() + 15 * 60 * 1000);
-    
-    return {
-      ...booking,
-      propertyTitle: property.title,
-      propertyAddress: property.addressName,
-      propertyImage: property.images[0],
-      numberOfNights,
-      expiresAt: expiresAt.toISOString()
-    };
-  })
+// Filtrer par date
+const upcoming = bookings.filter(b => 
+  new Date(b.startDate) > new Date() && b.status === 'CONFIRMED'
+);
+
+const past = bookings.filter(b => 
+  new Date(b.endDate) < new Date()
 );
 ```
 
-**Logique Métier**
-- Retourne TOUTES les réservations (tous statuts)
-- Tri par date de création décroissante
-- Utilisateur connecté extrait du JWT (X-User-Id)
+**Erreurs possibles**
+
+| Code | Message | Description |
+|------|---------|-------------|
+| `401` | `Unauthorized` | Token JWT invalide |
 
 ---
 
-### 3. Détails d'une Réservation
+### 4. Récupérer une réservation spécifique
 
-**Récupérer une réservation spécifique**
+Obtient les détails d'une réservation par son ID.
 
+**Endpoint**
 ```http
 GET /api/bookings/{bookingId}
-Authorization: Bearer <token>
 ```
 
-**Response 200 OK**
+**Path Parameters**
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `bookingId` | Long | Identifiant de la réservation |
+
+**Response Success (200 OK)**
+
 ```json
 {
-  "id": 1,
-  "propertyId": 1,
-  "tenantId": "660e8400-e29b-41d4-a716-446655440000",
-  "startDate": "2026-02-01",
-  "endDate": "2026-02-05",
-  "status": "CONFIRMED",
-  "tenantWalletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-  "pricePerNight": 1500.00,
-  "totalPrice": 6000.00,
-  "currency": "MAD",
-  "createdAt": "2026-01-11T10:30:00",
-  "updatedAt": "2026-01-11T10:32:00"
+  "id": 42,
+  "propertyId": "550e8400-e29b-41d4-a716-446655440001",
+  "tenantId": "550e8400-e29b-41d4-a716-446655440000",
+  "startDate": "2026-02-15",
+  "endDate": "2026-02-22",
+  "status": "AWAITING_PAYMENT",
+  "tenantWalletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+  "pricePerNight": 150.00,
+  "totalPrice": 1050.00,
+  "currency": "MATIC",
+  "createdAt": "2026-01-14T14:30:00",
+  "updatedAt": "2026-01-14T14:30:00"
 }
 ```
 
-**Response 403 Forbidden**
-```json
-{
-  "timestamp": "2026-01-11T10:30:00",
-  "status": 403,
-  "error": "Forbidden",
-  "message": "You are not authorized to view this booking"
-}
-```
+**Erreurs possibles**
 
-**Logique Métier**
-- Seul le locataire peut voir sa réservation
-- Vérification que `tenantId` == userId du JWT
-- Même limitation : pas de détails propriété
+| Code | Message | Description | Solution |
+|------|---------|-------------|----------|
+| `401` | `Unauthorized` | Token JWT invalide | Se reconnecter |
+| `403` | `Forbidden` | Vous n'avez pas accès à cette réservation | Seul le locataire peut voir sa réservation |
+| `404` | `Booking not found` | La réservation n'existe pas | Vérifier l'ID |
 
 ---
 
-### 4. Annuler une Réservation
+### 5. Compter les réservations actives (client)
 
-**Annuler une réservation existante**
+Compte le nombre de réservations actives où l'utilisateur est le locataire.
 
-```http
-PATCH /api/bookings/{bookingId}/cancel
-Authorization: Bearer <token>
-```
-
-**Response 200 OK**
-```json
-{
-  "id": 1,
-  "status": "CANCELLED",
-  "message": "Booking cancelled successfully"
-}
-```
-
-**Response 400 Bad Request**
-```json
-{
-  "timestamp": "2026-01-11T10:30:00",
-  "status": 400,
-  "error": "Bad Request",
-  "message": "Cannot cancel booking: Check-in date has passed"
-}
-```
-
-**Response 403 Forbidden**
-```json
-{
-  "timestamp": "2026-01-11T10:30:00",
-  "status": 403,
-  "error": "Forbidden",
-  "message": "You are not authorized to cancel this booking"
-}
-```
-
-**Logique Métier**
-
-**Conditions d'annulation** :
-1. L'utilisateur doit être le locataire
-2. Status doit être `AWAITING_PAYMENT` ou `CONFIRMED`
-3. Pour `CONFIRMED` : `startDate` doit être dans le futur
-
-**Workflow** :
-- Status → `CANCELLED`
-- Les dates redeviennent disponibles pour d'autres réservations
-- Pas de remboursement automatique (géré manuellement si nécessaire)
-
----
-
-### 5. Compter Réservations Actives (Client)
-
-**Compter les réservations actives de l'utilisateur en tant que client**
-
+**Endpoint**
 ```http
 GET /api/bookings/client/{userId}/active-count
-Authorization: Bearer <token>
 ```
 
-**Response 200 OK**
+**Path Parameters**
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `userId` | String | UUID de l'utilisateur |
+
+**Response Success (200 OK)**
+
 ```json
 {
-  "count": 2,
-  "userId": "660e8400-e29b-41d4-a716-446655440000",
+  "count": 3,
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
   "message": "User has active bookings as client"
 }
 ```
 
-**Logique Métier**
-- Compte les réservations avec status : `CONFIRMED`, `AWAITING_PAYMENT`
-- **Exclut** : `CANCELLED`, `EXPIRED`, `PENDING`
-- Utilisé par Auth Service pour validation déconnexion wallet
-- Si count > 0 → Impossible de déconnecter le wallet
+**Statuts considérés comme actifs** : `CONFIRMED`, `AWAITING_PAYMENT`, `PENDING`
+
+**Cas d'usage**
+
+- Afficher le nombre de réservations actives dans le dashboard utilisateur
+- Vérifier si un utilisateur peut effectuer une action (ex: supprimer son compte)
 
 ---
 
-### 6. Compter Réservations Futures (Hôte)
+### 6. Compter les réservations futures (hôte)
 
-**⚠️ LIMITATION ACTUELLE - Endpoint Partiellement Implémenté**
+Compte le nombre de réservations futures où l'utilisateur est le propriétaire.
 
+**Endpoint**
 ```http
 GET /api/bookings/host/{userId}/future-count
-Authorization: Bearer <token>
 ```
 
-**Response 200 OK**
+**Path Parameters**
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `userId` | String | UUID de l'utilisateur |
+
+**Response Success (200 OK)**
+
 ```json
 {
   "count": 0,
@@ -444,414 +354,463 @@ Authorization: Bearer <token>
 }
 ```
 
-**⚠️ AVERTISSEMENT IMPORTANT**
-
-Cette fonctionnalité n'est **pas complètement implémentée**. Le endpoint retourne **toujours `count: 0`**.
-
-**Raison Technique** :
-- La table `bookings` stocke uniquement `propertyId` (Long)
-- Pas de relation directe avec `Property` ou `Owner`
-- Impossible de filtrer par `ownerId` sans jointure complexe
-
-**Impact** :
-- Les hôtes peuvent toujours déconnecter leur wallet même avec réservations futures
-- Contrainte métier non respectée
-
-**Contournement Temporaire** :
-```javascript
-// ⚠️ Frontend peut implémenter la vérification
-const hostProperties = await fetch('/api/listings/properties/my-properties');
-const propertyIds = hostProperties.map(p => p.id);
-
-const allBookings = await fetch('/api/bookings/all'); // Endpoint admin
-const futureHostBookings = allBookings.filter(booking => 
-  propertyIds.includes(booking.propertyId) &&
-  booking.status === 'CONFIRMED' &&
-  new Date(booking.startDate) > new Date()
-);
-
-if (futureHostBookings.length > 0) {
-  alert("Cannot disconnect wallet: You have future bookings as host");
-}
-```
-
-**Status** : 🚧 En cours de développement
+> **Note** : Cette fonctionnalité retourne actuellement toujours 0 (non encore implémentée).
 
 ---
 
-## ⏱️ Système d'Expiration Automatique
+## Data Models
 
-### Scheduler (Backend)
+### BookingRequestDTO
 
-Un job automatique s'exécute toutes les **2 minutes** :
-
-```java
-@Scheduled(fixedDelay = 120000) // 120000ms = 2 minutes
-public void expireBookings() {
-    LocalDateTime expirationThreshold = LocalDateTime.now().minus(15, ChronoUnit.MINUTES);
-    
-    List<Booking> expiredBookings = bookingRepository
-        .findByStatusAndCreatedAtBefore(
-            BookingStatus.AWAITING_PAYMENT, 
-            expirationThreshold
-        );
-    
-    expiredBookings.forEach(booking -> {
-        booking.setStatus(BookingStatus.EXPIRED);
-        bookingRepository.save(booking);
-    });
-    
-    log.info("Expired {} bookings", expiredBookings.size());
+```typescript
+interface BookingRequestDTO {
+  propertyId: string;      // UUID de la propriété (obligatoire)
+  startDate: string;       // Format: YYYY-MM-DD (obligatoire)
+  endDate: string;         // Format: YYYY-MM-DD (obligatoire)
 }
 ```
 
-**Logique** :
-- Toutes les 2 minutes, cherche bookings avec :
-  - `status = AWAITING_PAYMENT`
-  - `createdAt < (now - 15 minutes)`
-- Change leur status vers `EXPIRED`
+### BookingResponseDTO
 
-### Frontend : Afficher le Compte à Rebours
-
-```javascript
-const calculateTimeLeft = (createdAt) => {
-  const created = new Date(createdAt);
-  const expires = new Date(created.getTime() + 15 * 60 * 1000);
-  const now = new Date();
-  const timeLeft = expires - now;
-  
-  if (timeLeft <= 0) {
-    return { expired: true, minutes: 0, seconds: 0 };
-  }
-  
-  const minutes = Math.floor(timeLeft / 60000);
-  const seconds = Math.floor((timeLeft % 60000) / 1000);
-  
-  return { expired: false, minutes, seconds };
-};
-
-// Utilisation
-const { expired, minutes, seconds } = calculateTimeLeft(booking.createdAt);
-
-if (expired) {
-  console.log("⚠️ Réservation expirée");
-} else {
-  console.log(`⏰ Temps restant: ${minutes}:${seconds.toString().padStart(2, '0')}`);
+```typescript
+interface BookingResponseDTO {
+  id: number;                    // Identifiant unique
+  propertyId: string;            // UUID de la propriété
+  tenantId: string;              // UUID du locataire
+  startDate: string;             // Date de début (ISO 8601)
+  endDate: string;               // Date de fin (ISO 8601)
+  status: BookingStatus;         // Statut de la réservation
+  tenantWalletAddress: string;   // Adresse MetaMask (0x...)
+  pricePerNight: number;         // Prix par nuit
+  totalPrice: number;            // Montant total
+  currency: string;              // Devise (MATIC, USDC)
+  createdAt: string;             // Date de création
+  updatedAt: string;             // Date de modification
 }
+```
+
+### BookingStatus
+
+```typescript
+enum BookingStatus {
+  AWAITING_PAYMENT = 'AWAITING_PAYMENT',  // En attente de paiement
+  CONFIRMED = 'CONFIRMED',                // Confirmée
+  CANCELLED = 'CANCELLED',                // Annulée
+  PENDING = 'PENDING'                     // En attente
+}
+```
+
+**Transitions d'état**
+
+```
+AWAITING_PAYMENT → CONFIRMED (après paiement validé)
+AWAITING_PAYMENT → CANCELLED (annulation par l'utilisateur)
+CONFIRMED → CANCELLED (annulation par l'utilisateur)
 ```
 
 ---
 
-## 🎯 Cas d'Usage Frontend CORRIGÉS
+## Error Handling
 
-### Workflow Complet de Réservation
+### Structure des erreurs
 
-```javascript
-// ===== ÉTAPE 1: Vérifier Wallet =====
-const walletCheck = await fetch(
-  `http://localhost:8082/api/auth/users/${userId}/wallet/status`,
-  { headers: { 'Authorization': `Bearer ${token}` } }
-);
-const { exists } = await walletCheck.json();
+```json
+{
+  "timestamp": "2026-01-14T14:30:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Description détaillée de l'erreur"
+}
+```
 
-if (!exists) {
-  alert("Veuillez connecter votre wallet MetaMask");
-  window.location.href = '/profile/wallet';
-  return;
+### Erreurs de validation
+
+```json
+{
+  "propertyId": "Property ID is required",
+  "startDate": "Start date is required",
+  "endDate": "End date is required"
+}
+```
+
+### Codes d'erreur
+
+| Code | Type | Description |
+|------|------|-------------|
+| `400` | Bad Request | Données invalides ou manquantes |
+| `401` | Unauthorized | Authentification requise |
+| `403` | Forbidden | Accès refusé |
+| `404` | Not Found | Ressource introuvable |
+| `409` | Conflict | Conflit (propriété non disponible) |
+| `500` | Internal Server Error | Erreur serveur |
+| `503` | Service Unavailable | Service indisponible |
+
+---
+
+## Integration Examples
+
+### React + TypeScript
+
+```typescript
+import axios from 'axios';
+
+interface BookingRequest {
+  propertyId: string;
+  startDate: string;
+  endDate: string;
 }
 
-// ===== ÉTAPE 2: Créer la Réservation =====
-const bookingData = {
-  propertyId: 1,  // ⚠️ Long, pas UUID !
-  startDate: "2026-02-01",  // ⚠️ startDate, pas checkInDate !
-  endDate: "2026-02-05"     // ⚠️ endDate, pas checkOutDate !
-  // ⚠️ PAS de numberOfGuests !
-};
+interface BookingResponse {
+  id: number;
+  propertyId: string;
+  tenantId: string;
+  startDate: string;
+  endDate: string;
+  status: 'AWAITING_PAYMENT' | 'CONFIRMED' | 'CANCELLED' | 'PENDING';
+  tenantWalletAddress: string;
+  pricePerNight: number;
+  totalPrice: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-const bookingResponse = await fetch(
-  'http://localhost:8082/api/bookings',
-  {
-    method: 'POST',
+class BookingService {
+  private api = axios.create({
+    baseURL: '/api',
     headers: {
-      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(bookingData)
-  }
-);
+    }
+  });
 
-if (!bookingResponse.ok) {
-  const error = await bookingResponse.json();
-  alert(error.message);
-  return;
+  constructor() {
+    // Intercepteur pour ajouter le token JWT
+    this.api.interceptors.request.use((config) => {
+      const token = localStorage.getItem('jwt_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
+  }
+
+  async createBooking(data: BookingRequest): Promise<BookingResponse> {
+    try {
+      const response = await this.api.post<BookingResponse>('/bookings', data);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        const message = error.response.data.message;
+        if (message.includes('Wallet')) {
+          throw new Error('Veuillez connecter votre wallet MetaMask');
+        }
+      }
+      throw error;
+    }
+  }
+
+  async getMyBookings(): Promise<BookingResponse[]> {
+    const response = await this.api.get<BookingResponse[]>('/bookings/my-bookings');
+    return response.data;
+  }
+
+  async getBooking(bookingId: number): Promise<BookingResponse> {
+    const response = await this.api.get<BookingResponse>(`/bookings/${bookingId}`);
+    return response.data;
+  }
+
+  async cancelBooking(bookingId: number): Promise<BookingResponse> {
+    const response = await this.api.patch<BookingResponse>(
+      `/bookings/${bookingId}/cancel`
+    );
+    return response.data;
+  }
 }
 
-const booking = await bookingResponse.json();
-console.log("Booking créé:", booking);
-// booking.status = "AWAITING_PAYMENT"
-// booking.id = 1
-// booking.propertyId = 1 (Long)
-// booking.totalPrice = 6000.00
+export const bookingService = new BookingService();
+```
 
-// ===== ÉTAPE 3: Calculer Champs Dérivés =====
-const start = new Date(booking.startDate);
-const end = new Date(booking.endDate);
-const numberOfNights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+### Usage dans un composant React
 
-const created = new Date(booking.createdAt);
-const expiresAt = new Date(created.getTime() + 15 * 60 * 1000);
+```typescript
+import React, { useState } from 'react';
+import { bookingService } from './services/bookingService';
 
-console.log(`Nuits: ${numberOfNights}`);
-console.log(`Prix: ${booking.totalPrice} ${booking.currency}`);
-console.log(`Expire à: ${expiresAt.toISOString()}`);
+const BookingForm: React.FC = () => {
+  const [formData, setFormData] = useState({
+    propertyId: '',
+    startDate: '',
+    endDate: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-// ===== ÉTAPE 4: Afficher Page Paiement =====
-// Afficher:
-// - Récapitulatif booking
-// - Prix total: 6000 MAD
-// - Timer: 15:00 (compte à rebours)
-// - Bouton "Payer avec MetaMask"
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-// Démarrer timer
-const timerInterval = setInterval(() => {
-  const { expired, minutes, seconds } = calculateTimeLeft(booking.createdAt);
-  
-  if (expired) {
-    clearInterval(timerInterval);
-    alert("⚠️ Temps expiré ! Votre réservation a été annulée.");
-    window.location.href = '/properties';
-  } else {
-    document.getElementById('timer').textContent = 
-      `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }
-}, 1000);
+    try {
+      const booking = await bookingService.createBooking(formData);
+      console.log('Réservation créée:', booking);
+      
+      // Rediriger vers la page de paiement
+      window.location.href = `/payment/${booking.id}`;
+      
+    } catch (err: any) {
+      setError(err.message || 'Une erreur est survenue');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-// ===== ÉTAPE 5: Paiement Blockchain (voir PAYMENT_SERVICE.md) =====
-// ... Suite dans la doc Payment Service
+  return (
+    <form onSubmit={handleSubmit}>
+      {error && <div className="error">{error}</div>}
+      
+      <input
+        type="text"
+        value={formData.propertyId}
+        onChange={(e) => setFormData({ ...formData, propertyId: e.target.value })}
+        placeholder="Property ID"
+        required
+      />
+      
+      <input
+        type="date"
+        value={formData.startDate}
+        onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+        required
+      />
+      
+      <input
+        type="date"
+        value={formData.endDate}
+        onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+        required
+      />
+      
+      <button type="submit" disabled={loading}>
+        {loading ? 'Création...' : 'Réserver'}
+      </button>
+    </form>
+  );
+};
+
+export default BookingForm;
+```
+
+### Vue.js 3 + Composition API
+
+```typescript
+// composables/useBooking.ts
+import { ref } from 'vue';
+
+export function useBooking() {
+  const bookings = ref([]);
+  const loading = ref(false);
+  const error = ref<string | null>(null);
+
+  const createBooking = async (data: BookingRequest) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message);
+      }
+
+      return await response.json();
+    } catch (err: any) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const fetchMyBookings = async () => {
+    loading.value = true;
+    
+    try {
+      const response = await fetch('/api/bookings/my-bookings', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+        }
+      });
+
+      bookings.value = await response.json();
+    } catch (err: any) {
+      error.value = err.message;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  return {
+    bookings,
+    loading,
+    error,
+    createBooking,
+    fetchMyBookings
+  };
+}
 ```
 
 ---
 
-### Afficher Liste de Réservations avec Détails
+## Testing
 
-```javascript
-// ===== ÉTAPE 1: Récupérer Bookings =====
-const response = await fetch(
-  'http://localhost:8082/api/bookings/my-bookings',
-  { headers: { 'Authorization': `Bearer ${token}` } }
-);
-const bookings = await response.json();
+### Jest + Testing Library
 
-// ===== ÉTAPE 2: Enrichir avec Détails Propriétés =====
-const enrichedBookings = await Promise.all(
-  bookings.map(async (booking) => {
-    try {
-      // Récupérer détails propriété
-      const propertyResponse = await fetch(
-        `http://localhost:8082/api/listings/properties/${booking.propertyId}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-      
-      if (!propertyResponse.ok) {
-        throw new Error('Property not found');
-      }
-      
-      const property = await propertyResponse.json();
-      
-      // Calculer champs dérivés
-      const start = new Date(booking.startDate);
-      const end = new Date(booking.endDate);
-      const numberOfNights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-      
-      const created = new Date(booking.createdAt);
-      const expiresAt = new Date(created.getTime() + 15 * 60 * 1000);
-      const { expired, minutes, seconds } = calculateTimeLeft(booking.createdAt);
-      
-      return {
-        ...booking,
-        // Détails propriété
-        propertyTitle: property.title,
-        propertyAddress: property.addressName,
-        propertyImage: property.images[0] || '/default-property.jpg',
-        propertyCity: property.city,
-        // Champs calculés
-        numberOfNights,
-        expiresAt: expiresAt.toISOString(),
-        timeLeft: expired ? null : { minutes, seconds }
-      };
-    } catch (error) {
-      console.error(`Error enriching booking ${booking.id}:`, error);
-      return {
-        ...booking,
-        propertyTitle: 'Propriété indisponible',
-        propertyImage: '/default-property.jpg'
-      };
-    }
-  })
-);
+```typescript
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { bookingService } from './services/bookingService';
+import BookingForm from './BookingForm';
 
-console.log("Bookings enrichis:", enrichedBookings);
+jest.mock('./services/bookingService');
 
-// ===== ÉTAPE 3: Afficher dans l'UI =====
-enrichedBookings.forEach(booking => {
-  const card = document.createElement('div');
-  card.className = 'booking-card';
-  
-  let statusBadge = '';
-  switch (booking.status) {
-    case 'CONFIRMED':
-      statusBadge = '<span class="badge badge-success">Confirmée</span>';
-      break;
-    case 'AWAITING_PAYMENT':
-      statusBadge = `<span class="badge badge-warning">
-        En attente - ${booking.timeLeft ? 
-          `${booking.timeLeft.minutes}:${booking.timeLeft.seconds.toString().padStart(2, '0')}` : 
-          'Expiré'}
-      </span>`;
-      break;
-    case 'CANCELLED':
-      statusBadge = '<span class="badge badge-danger">Annulée</span>';
-      break;
-    case 'EXPIRED':
-      statusBadge = '<span class="badge badge-secondary">Expirée</span>';
-      break;
-  }
-  
-  card.innerHTML = `
-    <img src="${booking.propertyImage}" alt="${booking.propertyTitle}">
-    <div class="booking-info">
-      <h3>${booking.propertyTitle}</h3>
-      <p>${booking.propertyAddress}, ${booking.propertyCity}</p>
-      <p>Du ${booking.startDate} au ${booking.endDate} (${booking.numberOfNights} nuits)</p>
-      <p class="price">${booking.totalPrice} ${booking.currency}</p>
-      ${statusBadge}
-    </div>
-  `;
-  
-  document.getElementById('bookings-container').appendChild(card);
+describe('BookingForm', () => {
+  it('should create a booking successfully', async () => {
+    const mockBooking = {
+      id: 42,
+      propertyId: '550e8400-e29b-41d4-a716-446655440001',
+      status: 'AWAITING_PAYMENT',
+      totalPrice: 1050
+    };
+
+    (bookingService.createBooking as jest.Mock).mockResolvedValue(mockBooking);
+
+    render(<BookingForm />);
+
+    fireEvent.change(screen.getByPlaceholderText('Property ID'), {
+      target: { value: '550e8400-e29b-41d4-a716-446655440001' }
+    });
+
+    fireEvent.change(screen.getByLabelText('Start Date'), {
+      target: { value: '2026-02-15' }
+    });
+
+    fireEvent.change(screen.getByLabelText('End Date'), {
+      target: { value: '2026-02-22' }
+    });
+
+    fireEvent.click(screen.getByText('Réserver'));
+
+    await waitFor(() => {
+      expect(bookingService.createBooking).toHaveBeenCalledWith({
+        propertyId: '550e8400-e29b-41d4-a716-446655440001',
+        startDate: '2026-02-15',
+        endDate: '2026-02-22'
+      });
+    });
+  });
+
+  it('should show error when wallet is not connected', async () => {
+    (bookingService.createBooking as jest.Mock).mockRejectedValue(
+      new Error('Veuillez connecter votre wallet MetaMask')
+    );
+
+    render(<BookingForm />);
+
+    // Fill form and submit...
+
+    await waitFor(() => {
+      expect(screen.getByText(/wallet MetaMask/i)).toBeInTheDocument();
+    });
+  });
 });
 ```
 
 ---
 
-## ⚠️ Points d'Attention Critiques
+## Best Practices
 
-### 1. Types de Données
+### 1. Gestion des erreurs
 
-```javascript
-// ❌ FAUX
-{
-  propertyId: "550e8400-e29b-41d4-a716-446655440000",  // UUID String
-  checkInDate: "2026-02-01",
-  checkOutDate: "2026-02-05"
-}
-
-// ✅ CORRECT
-{
-  propertyId: 1,  // Long (Integer)
-  startDate: "2026-02-01",
-  endDate: "2026-02-05"
+```typescript
+try {
+  const booking = await bookingService.createBooking(data);
+  // Succès
+} catch (error: any) {
+  if (error.response) {
+    // Erreur API
+    switch (error.response.status) {
+      case 400:
+        handleValidationError(error.response.data);
+        break;
+      case 401:
+        redirectToLogin();
+        break;
+      case 403:
+        showForbiddenMessage();
+        break;
+      case 404:
+        showNotFoundMessage();
+        break;
+      default:
+        showGenericError();
+    }
+  } else {
+    // Erreur réseau
+    showNetworkError();
+  }
 }
 ```
 
-### 2. Champs Manquants
+### 2. Retry logic pour les erreurs temporaires
 
-Les champs suivants **NE SONT PAS** retournés par l'API :
-- ❌ `numberOfNights` → Calculer frontend
-- ❌ `expiresAt` → Calculer `createdAt + 15 min`
-- ❌ `propertyTitle` → Appel Listing Service
-- ❌ `propertyAddress` → Appel Listing Service
-- ❌ `propertyImage` → Appel Listing Service
+```typescript
+async function createBookingWithRetry(data: BookingRequest, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await bookingService.createBooking(data);
+    } catch (error: any) {
+      if (i === maxRetries - 1) throw error;
+      
+      // Retry seulement pour les erreurs 503
+      if (error.response?.status === 503) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        continue;
+      }
+      
+      throw error;
+    }
+  }
+}
+```
 
-### 3. Timeout de Paiement
+### 3. Optimistic updates
 
-```javascript
-// ⚠️ Toujours vérifier l'expiration avant de payer
-const checkNotExpired = (createdAt) => {
-  const created = new Date(createdAt);
-  const expires = new Date(created.getTime() + 15 * 60 * 1000);
-  const now = new Date();
-  
-  if (now > expires) {
-    throw new Error("Booking expired. Please create a new booking.");
+```typescript
+const cancelBooking = async (bookingId: number) => {
+  // Mise à jour optimiste
+  const previousBookings = [...bookings];
+  bookings.value = bookings.value.map(b =>
+    b.id === bookingId ? { ...b, status: 'CANCELLED' } : b
+  );
+
+  try {
+    await bookingService.cancelBooking(bookingId);
+  } catch (error) {
+    // Rollback en cas d'erreur
+    bookings.value = previousBookings;
+    throw error;
   }
 };
-
-// Avant d'appeler le paiement
-try {
-  checkNotExpired(booking.createdAt);
-  await processPayment(booking);
-} catch (error) {
-  alert(error.message);
-  window.location.href = '/properties';
-}
-```
-
-### 4. Scheduler Fréquence
-
-- **Backend** : Vérifie toutes les 2 minutes
-- **Frontend** : Mettre à jour le timer toutes les secondes
-- Possible que booking reste `AWAITING_PAYMENT` jusqu'à 2 min après expiration
-
-### 5. Status PENDING
-
-```javascript
-// ⚠️ Ne jamais vérifier status === 'PENDING'
-// Ce status n'est jamais utilisé dans le code actuel
-
-// ❌ FAUX
-if (booking.status === 'PENDING') {
-  // Ce code ne sera JAMAIS exécuté
-}
-
-// ✅ CORRECT
-if (booking.status === 'AWAITING_PAYMENT') {
-  // Status réel après création
-}
 ```
 
 ---
 
-## 📊 États de Réservation - Résumé
-
-| Status | Visible User | Actions User | Auto-Expiration | Backend Utilise |
-|--------|--------------|--------------|-----------------|-----------------|
-| `PENDING` | ❌ | Aucune | ❌ | ⚠️ **NON** |
-| `AWAITING_PAYMENT` | ✅ | Payer, Annuler | ✅ 15 min | ✅ **OUI** |
-| `CONFIRMED` | ✅ | Annuler (si futur) | ❌ | ✅ **OUI** |
-| `CANCELLED` | ✅ | Aucune | ❌ | ✅ **OUI** |
-| `EXPIRED` | ✅ | Aucune | ❌ | ✅ **OUI** |
-
----
-
-## 🛡️ Circuit Breaker & Resilience
-
-Le service utilise **Resilience4j** pour gérer les appels aux services externes :
-
-### Configuration
-
-```yaml
-resilience4j:
-  circuitbreaker:
-    instances:
-      authService:
-        slidingWindowSize: 10
-        failureRateThreshold: 50
-        waitDurationInOpenState: 10000
-      listingService:
-        slidingWindowSize: 10
-        failureRateThreshold: 50
-```
-
-### Comportement en Cas d'Échec
-
-Si Auth Service ou Listing Service est down :
-- **Circuit OPEN** après 50% d'échecs
-- Attente 10 secondes avant réessai
-- Fallback : Retourne erreur 503 Service Unavailable
-
----
-
-**Version** : 2.0 (Corrigée)  
-**Date** : 11 janvier 2026  
-**Prochaine étape** : [PAYMENT_SERVICE.md](PAYMENT_SERVICE.md)
+**Documentation version** : 1.0.0  
+**Dernière mise à jour** : 14 janvier 2026
