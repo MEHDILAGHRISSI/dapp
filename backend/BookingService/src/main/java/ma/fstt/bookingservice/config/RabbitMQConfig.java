@@ -8,6 +8,8 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @Configuration
 public class RabbitMQConfig {
@@ -24,7 +26,6 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routing-key.expired:booking.expired}")
     private String expiredRoutingKey;
 
-
     // Exchange pour les événements utilisateur
     public static final String USER_EXCHANGE = "user.exchange";
 
@@ -36,7 +37,6 @@ public class RabbitMQConfig {
     public static final String USER_CREATED_ROUTING_KEY = "user.created";
     public static final String USER_UPDATED_ROUTING_KEY = "user.updated";
 
-
     @Bean
     public TopicExchange userExchange() {
         return new TopicExchange(USER_EXCHANGE);
@@ -44,7 +44,7 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue userCreatedQueue() {
-        return new Queue(USER_CREATED_QUEUE, true); // durable = true
+        return new Queue(USER_CREATED_QUEUE, true);
     }
 
     @Bean
@@ -68,7 +68,6 @@ public class RabbitMQConfig {
                 .with(USER_UPDATED_ROUTING_KEY);
     }
 
-
     // ========== EXCHANGES ==========
 
     @Bean
@@ -76,7 +75,7 @@ public class RabbitMQConfig {
         return new TopicExchange(exchange);
     }
 
-    // ========== NOUVEAU : Dead Letter Exchange ==========
+    // ========== Dead Letter Exchange ==========
 
     @Bean
     public DirectExchange deadLetterExchange() {
@@ -96,7 +95,7 @@ public class RabbitMQConfig {
                 .with("*.dead");
     }
 
-    // ========== MODIFIER : Queues avec DLX ==========
+    // ========== Queues avec DLX ==========
 
     @Bean
     public Queue bookingCancelledQueue() {
@@ -111,7 +110,7 @@ public class RabbitMQConfig {
         return QueueBuilder.durable("booking.confirmed.queue")
                 .withArgument("x-dead-letter-exchange", "rental.dlx")
                 .withArgument("x-dead-letter-routing-key", "booking.confirmed.dead")
-                .withArgument("x-message-ttl", 300000)  // 5 minutes TTL
+                .withArgument("x-message-ttl", 300000)
                 .build();
     }
 
@@ -149,23 +148,7 @@ public class RabbitMQConfig {
                 .with(expiredRoutingKey);
     }
 
-    // ========== CONVERTERS ==========
-
-    @Bean
-    public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
-    }
-
-    @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
-        RabbitTemplate template = new RabbitTemplate(connectionFactory);
-        template.setMessageConverter(jsonMessageConverter());
-        return template;
-    }
-
     // ========== PAYMENT QUEUES ==========
-    // ✅ CETTE SECTION EST DÉJÀ BONNE !
-    // Elle déclare les queues avec le DLX correctement
 
     public static final String PAYMENT_EXCHANGE = "payment.exchange";
     public static final String PAYMENT_CONFIRMED_QUEUE = "payment.confirmed.queue";
@@ -183,7 +166,7 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(PAYMENT_CONFIRMED_QUEUE)
                 .withArgument("x-dead-letter-exchange", "rental.dlx")
                 .withArgument("x-dead-letter-routing-key", "payment.confirmed.dead")
-                .withArgument("x-message-ttl", 86400000)  // ✅ 24h TTL
+                .withArgument("x-message-ttl", 86400000)
                 .build();
     }
 
@@ -192,7 +175,7 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(PAYMENT_FAILED_QUEUE)
                 .withArgument("x-dead-letter-exchange", "rental.dlx")
                 .withArgument("x-dead-letter-routing-key", "payment.failed.dead")
-                .withArgument("x-message-ttl", 86400000)  // ✅ 24h TTL
+                .withArgument("x-message-ttl", 86400000)
                 .build();
     }
 
@@ -210,5 +193,22 @@ public class RabbitMQConfig {
                 .bind(paymentFailedQueue())
                 .to(paymentExchange())
                 .with(PAYMENT_FAILED_ROUTING_KEY);
+    }
+
+    // ========== CONVERTERS (LA PARTIE CORRIGÉE) ==========
+
+    // ✅ UNE SEULE DÉFINITION DE CE BEAN (CELLE AVEC JAVATIMEMODULE)
+    @Bean
+    public MessageConverter jsonMessageConverter() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule()); // Gestion des LocalDate
+        return new Jackson2JsonMessageConverter(objectMapper);
+    }
+
+    @Bean
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
+        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+        template.setMessageConverter(jsonMessageConverter());
+        return template;
     }
 }

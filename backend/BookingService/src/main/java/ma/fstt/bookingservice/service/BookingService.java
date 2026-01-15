@@ -75,8 +75,9 @@ public class BookingService {
         long numberOfNights = ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate());
         BigDecimal totalPrice = property.getPrice().multiply(BigDecimal.valueOf(numberOfNights));
 
-        log.info("Calculated price: {} nights × {} {} = {} {}",
-                numberOfNights, property.getPrice(), property.getCurrency(), totalPrice, property.getCurrency());
+        // ✅ CORRECTION: Log sans property.getCurrency() pour éviter les NullPointerException
+        log.info("Calculated price: {} nights × {} ETH = {} ETH",
+                numberOfNights, property.getPrice(), totalPrice);
 
         // Step 5: Create Booking with AWAITING_PAYMENT status
         Booking booking = Booking.builder()
@@ -88,7 +89,7 @@ public class BookingService {
                 .tenantWalletAddress(tenantWallet)
                 .pricePerNight(property.getPrice())
                 .totalPrice(totalPrice)
-                .currency(property.getCurrency())
+                .currency("ETH")  // ✅ CORRECTION: Force "ETH" au lieu de property.getCurrency()
                 .build();
 
         Booking savedBooking = bookingRepository.save(booking);
@@ -195,31 +196,30 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BookingException("Booking not found"));
 
-        // ❌ Impossible d'annuler si déjà dans un état final
-        if (booking.getStatus() == BookingStatus.CANCELLED) {
-            log.warn("Attempted to cancel already cancelled booking {}", bookingId);
+        // ⚠️ VALIDATION: Vérifier les transitions autorisées
+        BookingStatus previousStatus = booking.getStatus();
+
+        if (previousStatus == BookingStatus.CANCELLED) {
             throw new BookingException("Booking is already cancelled");
         }
 
-        if (booking.getStatus() == BookingStatus.EXPIRED) {
-            log.warn("Attempted to cancel expired booking {}", bookingId);
+        if (previousStatus == BookingStatus.EXPIRED) {
             throw new BookingException("Booking has expired and cannot be cancelled");
         }
 
-        // ⚠️ CRITIQUE : Si CONFIRMED, déclencher le processus de remboursement
-        if (booking.getStatus() == BookingStatus.CONFIRMED) {
-            log.warn("⚠️ Cancelling CONFIRMED booking {} - Refund process should be initiated", bookingId);
-            log.info("Cancellation of confirmed booking allowed - Manual refund may be required");
+        // Autorisé: AWAITING_PAYMENT, CONFIRMED
+        if (previousStatus != BookingStatus.AWAITING_PAYMENT && previousStatus != BookingStatus.CONFIRMED) {
+            throw new BookingException(
+                    String.format("Cannot cancel booking in status %s", previousStatus)
+            );
         }
 
-        // ✅ Transition autorisée
-        BookingStatus previousStatus = booking.getStatus();
         booking.setStatus(BookingStatus.CANCELLED);
         Booking cancelledBooking = bookingRepository.save(booking);
 
         // Publier l'événement d'annulation
         rabbitTemplate.convertAndSend(exchange, cancelledRoutingKey, cancelledBooking);
-        log.info("Booking {} cancelled from status {} - Published cancellation event",
+        log.info("Booking {} cancelled (was: {}) - Published cancellation event",
                 bookingId, previousStatus);
 
         return mapToResponseDTO(cancelledBooking);
@@ -289,7 +289,8 @@ public class BookingService {
                 throw new BookingException("Property does not have a valid price");
             }
 
-            log.info("Fetched property pricing: {} {}/night", property.getPrice(), property.getCurrency());
+            // ✅ CORRECTION: Log sans property.getCurrency() car il peut être null
+            log.info("Fetched property pricing: {} ETH/night", property.getPrice());
             return property;
 
         } catch (FeignException.NotFound e) {
