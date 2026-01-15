@@ -544,4 +544,18 @@ public class PropertyController {
         }
     }
 
+
+    @GetMapping("/owner/{ownerId}/property-ids")
+    public ResponseEntity<List<String>> getPropertyIdsByOwner(@PathVariable String ownerId) {
+        log.info("📋 Fetching property IDs for owner: {}", ownerId);
+
+        try {
+            List<String> propertyIds = propertyService.getPropertyIdsByOwner(ownerId);
+            return ResponseEntity.ok(propertyIds);
+        } catch (Exception e) {
+            log.error("❌ Error fetching property IDs for owner {}: {}", ownerId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of());
+        }
+    }
+
 }

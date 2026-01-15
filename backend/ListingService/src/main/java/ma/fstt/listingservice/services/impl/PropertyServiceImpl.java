@@ -534,4 +534,29 @@ public class PropertyServiceImpl implements PropertyService {
         // 6. Convertir et retourner
         return convertToDto(updatedProperty);
     }
+
+    /**
+     * ✅ ADD THIS METHOD TO PropertyServiceImpl CLASS
+     * Location: ma.fstt.listingservice.services.impl.PropertyServiceImpl
+     *
+     * Add this import at the top:
+     * import java.util.stream.Collectors;
+     */
+
+    @Override
+    public List<String> getPropertyIdsByOwner(String ownerId) {
+        log.info("📋 Fetching property IDs for owner: {}", ownerId);
+
+        // Retrieve all properties for the owner (excluding DELETED)
+        List<PropertyEntity> properties = propertyRepository.findByOwnerIdAndStatusNot(
+                ownerId, PropertyStatus.DELETED);
+
+        // Extract and return only the property IDs
+        List<String> propertyIds = properties.stream()
+                .map(PropertyEntity::getPropertyId)
+                .collect(Collectors.toList());
+
+        log.info("✅ Found {} properties for owner {}", propertyIds.size(), ownerId);
+        return propertyIds;
+    }
 }

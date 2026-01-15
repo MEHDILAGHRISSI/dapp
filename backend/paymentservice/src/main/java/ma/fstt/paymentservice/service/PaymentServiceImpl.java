@@ -89,6 +89,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .contractAddress(request.getContractAddress())
                 .status(PaymentStatus.VALIDATING)
                 .currency("ETH") // Sera "MATIC" sur Polygon
+                .amount(request.getExpectedAmount()) // 👈 AJOUT CRITIQUE
                 .build();
 
         payment = paymentRepository.save(payment);

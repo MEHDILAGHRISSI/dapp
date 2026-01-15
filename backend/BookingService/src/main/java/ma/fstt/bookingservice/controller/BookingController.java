@@ -2,6 +2,7 @@ package ma.fstt.bookingservice.controller;
 
 import ma.fstt.bookingservice.dto.BookingRequestDTO;
 import ma.fstt.bookingservice.dto.BookingResponseDTO;
+import ma.fstt.bookingservice.dto.HostBookingDTO;
 import ma.fstt.bookingservice.model.BookingStatus;
 import ma.fstt.bookingservice.service.BookingService;
 import jakarta.validation.Valid;
@@ -10,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.HashMap;
 import java.util.List;
@@ -41,28 +41,34 @@ public class BookingController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    // ========== ENDPOINTS SPÉCIFIQUES (DOIVENT VENIR EN PREMIER) ==========
+
     /**
-     * Cancel a booking (peut être appelé par l'utilisateur)
-     * ✅ SÉCURISÉ : Vérification de propriété implémentée
+     * ✅ NEW: Host Dashboard - Get all bookings for properties owned by the host
+     *
+     * IMPORTANT: CET ENDPOINT DOIT VENIR AVANT /{bookingId}
      */
-    @PatchMapping("/{bookingId}/cancel")
-    public ResponseEntity<BookingResponseDTO> cancelBooking(
-            @PathVariable Long bookingId,
-            @RequestHeader(value = "X-User-Id", required = true) String tenantId
+    @GetMapping("/host")
+    public ResponseEntity<List<HostBookingDTO>> getHostBookings(
+            @RequestHeader(value = "X-User-Id", required = true) String hostId
     ) {
-        log.info("Cancelling booking {} by tenant {}", bookingId, tenantId);
+        log.info("🏠 Fetching host dashboard bookings for host: {}", hostId);
 
-        // ✅ Vérifier que l'utilisateur est le propriétaire de la réservation
-        BookingResponseDTO booking = bookingService.getBookingById(bookingId);
+        try {
+            List<HostBookingDTO> hostBookings = bookingService.getBookingsForHost(hostId);
 
-        if (!booking.getTenantId().equals(tenantId)) {
-            log.warn("Unauthorized cancellation attempt: booking {} by user {}",
-                    bookingId, tenantId);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+            log.info("✅ Successfully retrieved {} bookings for host {}",
+                    hostBookings.size(), hostId);
+
+            return ResponseEntity.ok(hostBookings);
+
+        } catch (Exception e) {
+            log.error("❌ Error fetching host bookings for host {}: {}",
+                    hostId, e.getMessage());
+
+            // Return empty list instead of error to avoid breaking the dashboard
+            return ResponseEntity.ok(List.of());
         }
-
-        BookingResponseDTO response = bookingService.cancelBooking(bookingId);
-        return ResponseEntity.ok(response);
     }
 
     /**
@@ -79,31 +85,7 @@ public class BookingController {
     }
 
     /**
-     * Get a specific booking by ID
-     * ✅ SÉCURISÉ : Vérification de propriété implémentée
-     */
-    @GetMapping("/{bookingId}")
-    public ResponseEntity<BookingResponseDTO> getBooking(
-            @PathVariable Long bookingId,
-            @RequestHeader(value = "X-User-Id", required = true) String tenantId
-    ) {
-        log.info("Fetching booking {} by tenant {}", bookingId, tenantId);
-
-        BookingResponseDTO booking = bookingService.getBookingById(bookingId);
-
-        // ✅ Vérifier que l'utilisateur a le droit de voir cette réservation
-        if (!booking.getTenantId().equals(tenantId)) {
-            log.warn("Unauthorized access attempt: booking {} by user {}",
-                    bookingId, tenantId);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
-        }
-
-        return ResponseEntity.ok(booking);
-    }
-
-
-    /**
-     * 🆕 Get count of future bookings where user is the HOST (property owner)
+     * ✅ NEW: Get count of future bookings where user is the HOST (property owner)
      */
     @GetMapping("/host/{userId}/future-count")
     public ResponseEntity<Map<String, Object>> getFutureBookingsAsHost(@PathVariable String userId) {
@@ -131,7 +113,7 @@ public class BookingController {
     }
 
     /**
-     * 🆕 Get count of active bookings where user is the CLIENT (tenant)
+     * ✅ NEW: Get count of active bookings where user is the CLIENT (tenant)
      */
     @GetMapping("/client/{userId}/active-count")
     public ResponseEntity<Map<String, Object>> getActiveBookingsAsClient(@PathVariable String userId) {
@@ -168,5 +150,56 @@ public class BookingController {
 
             return ResponseEntity.ok(response);
         }
+    }
+
+    /**
+     * Cancel a booking (peut être appelé par l'utilisateur)
+     * ✅ SÉCURISÉ : Vérification de propriété implémentée
+     */
+    @PatchMapping("/{bookingId}/cancel")
+    public ResponseEntity<BookingResponseDTO> cancelBooking(
+            @PathVariable Long bookingId,
+            @RequestHeader(value = "X-User-Id", required = true) String tenantId
+    ) {
+        log.info("Cancelling booking {} by tenant {}", bookingId, tenantId);
+
+        // ✅ Vérifier que l'utilisateur est le propriétaire de la réservation
+        BookingResponseDTO booking = bookingService.getBookingById(bookingId);
+
+        if (!booking.getTenantId().equals(tenantId)) {
+            log.warn("Unauthorized cancellation attempt: booking {} by user {}",
+                    bookingId, tenantId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+        }
+
+        BookingResponseDTO response = bookingService.cancelBooking(bookingId);
+        return ResponseEntity.ok(response);
+    }
+
+    // ========== ENDPOINT GÉNÉRIQUE (DOIT VENIR EN DERNIER) ==========
+
+    /**
+     * Get a specific booking by ID
+     * ✅ SÉCURISÉ : Vérification de propriété implémentée
+     *
+     * IMPORTANT: CET ENDPOINT DOIT VENIR APRÈS TOUS LES ENDPOINTS SPÉCIFIQUES
+     */
+    @GetMapping("/{bookingId}")
+    public ResponseEntity<BookingResponseDTO> getBooking(
+            @PathVariable Long bookingId,
+            @RequestHeader(value = "X-User-Id", required = true) String tenantId
+    ) {
+        log.info("Fetching booking {} by tenant {}", bookingId, tenantId);
+
+        BookingResponseDTO booking = bookingService.getBookingById(bookingId);
+
+        // ✅ Vérifier que l'utilisateur a le droit de voir cette réservation
+        if (!booking.getTenantId().equals(tenantId)) {
+            log.warn("Unauthorized access attempt: booking {} by user {}",
+                    bookingId, tenantId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+        }
+
+        return ResponseEntity.ok(booking);
     }
 }

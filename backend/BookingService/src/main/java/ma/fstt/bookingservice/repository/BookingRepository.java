@@ -41,6 +41,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // ✅ FIX: Changed from Long to String to match PropertyEntity.propertyId type
     List<Booking> findByPropertyId(String propertyId);
 
+    /**
+     * ✅ NEW: Find all bookings for multiple properties (for Host Dashboard)
+     * Returns all bookings where propertyId is in the provided list
+     */
+    List<Booking> findByPropertyIdIn(List<String> propertyIds);
 
     /**
      * ✅ CRITICAL FIX: Changed @Param("propertyId") from Long to String

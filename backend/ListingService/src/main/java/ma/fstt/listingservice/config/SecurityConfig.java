@@ -29,6 +29,8 @@ public class SecurityConfig {
                         .requestMatchers("/properties/search").permitAll()             // Search properties
                         .requestMatchers("/properties/nearby").permitAll()             // Nearby properties
                         .requestMatchers("/properties/owner/{ownerId}/active-count").permitAll() // Active count
+                        .requestMatchers("/properties/owner/{ownerId}/property-ids").permitAll() // ✅ NEW: Property IDs for host dashboard
+
 
                         // Characteristics - Lecture publique
                         .requestMatchers("/characteristics").permitAll()               // GET all characteristics
@@ -59,6 +61,7 @@ public class SecurityConfig {
 
                         // ========== COUNT ==========
                         .requestMatchers("/properties/owner/*/count").permitAll()                // Count properties by owner
+
 
                         // ========== ROUTES PROTÉGÉES (Authentification JWT requise) ==========
                         // Toutes les autres routes nécessitent authentification

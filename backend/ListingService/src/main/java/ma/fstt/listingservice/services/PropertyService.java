@@ -67,4 +67,5 @@ public interface PropertyService {
 
     PropertyDto addImagesToProperty(String propertyId, List<String> newImagePaths, String userId);
 
+    List<String> getPropertyIdsByOwner(String ownerId);
 }

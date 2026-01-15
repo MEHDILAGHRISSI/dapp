@@ -18,7 +18,8 @@ public class CorsConfig {
         // Remplacer "*" par des origines spécifiques pour permettre les credentials
         corsConfig.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",           // React dev
-                "http://localhost:5173"          // Vite dev
+                "http://localhost:5173"  ,        // Vite dev
+                "http://aa246fc51bf7244c5b132e933e81cb0f-1780957586.eu-west-3.elb.amazonaws.com"
         ));
 
         // Autoriser les credentials - ✅ OK maintenant (pas de conflit)

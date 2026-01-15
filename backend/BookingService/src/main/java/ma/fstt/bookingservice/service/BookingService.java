@@ -1,9 +1,12 @@
 package ma.fstt.bookingservice.service;
 
 import ma.fstt.bookingservice.client.AuthServiceClient;
-import ma.fstt.bookingservice.repository.BookingRepository;
 import ma.fstt.bookingservice.dto.BookingRequestDTO;
 import ma.fstt.bookingservice.dto.BookingResponseDTO;
+import ma.fstt.bookingservice.entities.Tenant;
+import ma.fstt.bookingservice.dto.HostBookingDTO;
+import ma.fstt.bookingservice.repository.BookingRepository;
+import ma.fstt.bookingservice.repository.TenantRepository;
 import ma.fstt.bookingservice.response.PropertyDTO;
 import ma.fstt.bookingservice.response.WalletStatusDTO;
 import ma.fstt.bookingservice.exception.*;
@@ -48,6 +51,7 @@ public class BookingService {
     @Value("${rabbitmq.routing-key.created}")
     private String createdRoutingKey;
 
+    private final TenantRepository tenantRepository;
     /**
      * ✅ MODIFIÉ : Récupération automatique du wallet + String tenantId + String propertyId
      * Trust-But-Verify Pattern: Create Booking with strict validation
@@ -412,5 +416,135 @@ public class BookingService {
                 clientId,
                 Arrays.asList(BookingStatus.CONFIRMED) // Pas ONGOING!
         );
+    }
+
+    /**
+     * ✅ ADD THESE METHODS TO BookingService CLASS
+     * Location: ma.fstt.bookingservice.service.BookingService
+     *
+     * Add these imports at the top:
+     * import ma.fstt.bookingservice.dto.HostBookingDTO;
+     * import ma.fstt.bookingservice.repository.TenantRepository;
+     * import ma.fstt.bookingservice.entities.Tenant;
+     * import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+     * import feign.FeignException;
+     */
+
+// Add this field to the class (with @Autowired or in constructor with @RequiredArgsConstructor)
+
+
+    /**
+     * ✅ NEW: Get all bookings for properties owned by a specific host
+     * This is for the Host Dashboard feature
+     *
+     * Flow:
+     * 1. Call ListingService to get all property IDs owned by the host
+     * 2. Query BookingRepository to get all bookings for these properties
+     * 3. For each booking, retrieve tenant details from local TenantRepository
+     * 4. Map to HostBookingDTO with tenant name and email
+     *
+     * @param hostId The host's user ID (owner ID)
+     * @return List of bookings with tenant details
+     */
+    @CircuitBreaker(name = "listingService", fallbackMethod = "getHostBookingsFallback")
+    public List<HostBookingDTO> getBookingsForHost(String hostId) {
+        log.info("🏠 Fetching bookings for host: {}", hostId);
+
+        try {
+            // Step 1: Get all property IDs owned by this host
+            List<String> propertyIds = listingServiceClient.getPropertyIdsByOwner(hostId);
+
+            if (propertyIds.isEmpty()) {
+                log.info("📭 Host {} has no properties", hostId);
+                return List.of();
+            }
+
+            log.info("📋 Host {} has {} properties", hostId, propertyIds.size());
+
+            // Step 2: Get all bookings for these properties
+            List<Booking> bookings = bookingRepository.findByPropertyIdIn(propertyIds);
+
+            if (bookings.isEmpty()) {
+                log.info("📭 No bookings found for host {}'s properties", hostId);
+                return List.of();
+            }
+
+            log.info("📊 Found {} bookings for host {}'s properties", bookings.size(), hostId);
+
+            // Step 3: Map each booking to HostBookingDTO with tenant details
+            return bookings.stream()
+                    .map(this::mapToHostBookingDTO)
+                    .toList();
+
+        } catch (FeignException.NotFound e) {
+            log.warn("⚠️ Host {} not found in ListingService", hostId);
+            return List.of();
+        } catch (FeignException e) {
+            log.error("❌ Error communicating with ListingService: {}", e.getMessage());
+            throw new BookingException("Unable to fetch host properties. Please try again later.", e);
+        }
+    }
+
+    /**
+     * ✅ Fallback method for getBookingsForHost when ListingService is unavailable
+     */
+    private List<HostBookingDTO> getHostBookingsFallback(String hostId, Exception e) {
+        log.error("❌ ListingService circuit breaker activated while fetching host bookings: {}",
+                e.getMessage());
+        throw new ServiceUnavailableException(
+                "Property service is temporarily unavailable. Please try again later."
+        );
+    }
+
+    /**
+     * ✅ NEW: Map Booking to HostBookingDTO with tenant details
+     * Retrieves tenant information from local TenantRepository
+     *
+     * @param booking The booking entity
+     * @return HostBookingDTO with tenant details
+     */
+    private HostBookingDTO mapToHostBookingDTO(Booking booking) {
+        // Retrieve tenant details from local repository
+        Tenant tenant = tenantRepository.findByUserId(booking.getTenantId())
+                .orElse(null);
+
+        // Build tenant name (firstname + lastname)
+        String tenantName = "Unknown";
+        String tenantEmail = "N/A";
+
+        if (tenant != null) {
+            // Build full name
+            if (tenant.getFirstname() != null && tenant.getLastname() != null) {
+                tenantName = tenant.getFirstname() + " " + tenant.getLastname();
+            } else if (tenant.getFirstname() != null) {
+                tenantName = tenant.getFirstname();
+            } else if (tenant.getLastname() != null) {
+                tenantName = tenant.getLastname();
+            }
+
+            // Get email
+            if (tenant.getEmail() != null) {
+                tenantEmail = tenant.getEmail();
+            }
+        } else {
+            log.warn("⚠️ Tenant {} not found in local repository for booking {}",
+                    booking.getTenantId(), booking.getId());
+        }
+
+        return HostBookingDTO.builder()
+                .bookingId(booking.getId())
+                .propertyId(booking.getPropertyId())
+                .tenantId(booking.getTenantId())
+                .tenantName(tenantName)
+                .tenantEmail(tenantEmail)
+                .startDate(booking.getStartDate())
+                .endDate(booking.getEndDate())
+                .status(booking.getStatus())
+                .pricePerNight(booking.getPricePerNight())
+                .totalPrice(booking.getTotalPrice())
+                .currency(booking.getCurrency())
+                .createdAt(booking.getCreatedAt())
+                .updatedAt(booking.getUpdatedAt())
+                .build();
     }
 }

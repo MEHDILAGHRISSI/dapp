@@ -133,7 +133,7 @@ services:
       RABBITMQ_EXCHANGE: payment.exchange
       RABBITMQ_ROUTING_KEY_CONFIRMED: payment.confirmed
       RABBITMQ_ROUTING_KEY_FAILED: payment.failed
-
+      BOOKING_SERVICE_URL: http://booking-service:8083
       # Server Configuration
       SERVER_PORT: 8084
       JAVA_OPTS: "-Xmx512m -Xms256m"
@@ -183,7 +183,6 @@ services:
       - "8545:8545"
     networks:
       - app-network
-    restart: unless-stopped
 
   # ==================== DATABASE AUTH ====================
   db-auth:

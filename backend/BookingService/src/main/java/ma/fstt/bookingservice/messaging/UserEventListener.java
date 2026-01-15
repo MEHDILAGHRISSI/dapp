@@ -1,7 +1,5 @@
 package ma.fstt.bookingservice.messaging;
 
-import ma.fstt.bookingservice.dto.UserCreatedEvent;
-import ma.fstt.bookingservice.dto.UserUpdatedEvent;
 import ma.fstt.bookingservice.entities.Tenant;
 import ma.fstt.bookingservice.repository.TenantRepository;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
