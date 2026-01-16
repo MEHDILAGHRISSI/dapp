@@ -29,7 +29,10 @@ public class SecurityConfig {
                         .requestMatchers("/properties/search").permitAll()             // Search properties
                         .requestMatchers("/properties/nearby").permitAll()             // Nearby properties
                         .requestMatchers("/properties/owner/{ownerId}/active-count").permitAll() // Active count
-                        .requestMatchers("/properties/owner/{ownerId}/property-ids").permitAll() // ✅ NEW: Property IDs for host dashboard
+                        .requestMatchers("/properties/owner/{ownerId}/property-ids").permitAll() // Property IDs for host dashboard
+
+                        // ✅ NEW: Wallet address endpoint (for Payment Service)
+                        .requestMatchers(HttpMethod.GET, "/properties/*/wallet-address").permitAll() // Get wallet for payment
 
 
                         // Characteristics - Lecture publique

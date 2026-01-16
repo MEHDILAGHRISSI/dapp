@@ -559,4 +559,29 @@ public class PropertyServiceImpl implements PropertyService {
         log.info("✅ Found {} properties for owner {}", propertyIds.size(), ownerId);
         return propertyIds;
     }
+
+    // ✅ AJOUTEZ CETTE MÉTHODE DANS PropertyServiceImpl.java
+
+    /**
+     * 💰 Récupérer l'adresse wallet d'un owner
+     *
+     * @param ownerId ID de l'owner (userId)
+     * @return Adresse wallet ou null
+     */
+    public String getOwnerWalletAddress(String ownerId) {
+        log.info("🔍 Fetching wallet address for owner: {}", ownerId);
+
+        Owner owner = ownerRepository.findByUserId(ownerId)
+                .orElseThrow(() -> new RuntimeException("Owner not found with userId: " + ownerId));
+
+        String walletAddress = owner.getWalletAddress();
+
+        if (walletAddress == null || walletAddress.trim().isEmpty()) {
+            log.warn("⚠️ Owner {} has no wallet address", ownerId);
+            return null;
+        }
+
+        log.info("✅ Wallet address found for owner {}: {}", ownerId, walletAddress);
+        return walletAddress;
+    }
 }

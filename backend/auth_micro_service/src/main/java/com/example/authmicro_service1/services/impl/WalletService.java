@@ -40,7 +40,7 @@ public class WalletService {
      * 🔌 Connecter un wallet à un utilisateur
      *
      * Validations:
-     * 1. Format de l'adresse Ethereum valide
+     * 1. Format de l'adresse Ethereum valide ⚠️ DÉSACTIVÉE
      * 2. Utilisateur existe
      * 3. Wallet pas déjà utilisé par un autre utilisateur
      * 4. Vérification de propriété (currentUser = userId)
@@ -52,9 +52,15 @@ public class WalletService {
      */
     @Transactional
     public void connectWallet(String userId, String walletAddress, String currentUserEmail) {
-        // ✅ 1. Valider le format de l'adresse
-        if (!isValidEthereumAddress(walletAddress)) {
-            throw new IllegalArgumentException("Format d'adresse Ethereum invalide. Attendu: 0x suivi de 40 caractères hexadécimaux");
+        // ⚠️ VALIDATION DÉSACTIVÉE - Vous pouvez maintenant utiliser n'importe quelle adresse
+        // Laissez cette ligne commentée pour réactiver la validation :
+        // if (!isValidEthereumAddress(walletAddress)) {
+        //     throw new IllegalArgumentException("Format d'adresse Ethereum invalide. Attendu: 0x suivi de 40 caractères hexadécimaux");
+        // }
+
+        // ✅ Validation minimale : l'adresse ne doit pas être vide
+        if (walletAddress == null || walletAddress.trim().isEmpty()) {
+            throw new IllegalArgumentException("L'adresse du wallet ne peut pas être vide");
         }
 
         // ✅ 2. Récupérer l'utilisateur

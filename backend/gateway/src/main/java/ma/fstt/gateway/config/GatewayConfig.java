@@ -386,6 +386,13 @@ public class GatewayConfig {
                                 .filter(new RoleBasedAuthorizationFilter(jwtUtil, "ADMIN")))
                         .uri(listingServiceUrl))
 
+                // ---------- Property Wallet Address (for Payment Service) ----------
+                .route("listing_property_wallet", r -> r
+                        .path("/api/listings/properties/{propertyId}/wallet-address")
+                        .and().method("GET")
+                        .filters(f -> f.stripPrefix(2))
+                        .uri(listingServiceUrl))
+
                 // ---------- Owners ----------
                 .route("listing_check_owner_status", r -> r
                         .path("/api/listings/owners/check/{userId}")

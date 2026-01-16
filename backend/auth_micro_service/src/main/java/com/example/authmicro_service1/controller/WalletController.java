@@ -34,24 +34,44 @@ public class WalletController {
     public ResponseEntity<?> connectWallet(
             @PathVariable String userId,
             @RequestBody WalletUpdateRequest request) {
-        try {
-            // ✅ Vérifier que l'utilisateur connecté = userId (sécurité)
-            String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
 
+        // 🔍 LOG 1 : Vérifier si on entre dans la méthode
+        System.out.println("🚀 [DEBUG] Controller atteint pour UserID: " + userId);
+
+        // 🔍 LOG 2 : Vérifier ce qu'on a reçu du JSON
+        System.out.println("📦 [DEBUG] Payload reçu - Wallet: " + request.getWalletAddress());
+
+        try {
+            // ✅ CORRECTION: Récupérer l'email de l'utilisateur authentifié
+            String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+            System.out.println("🔐 [DEBUG] Utilisateur authentifié: " + currentUserEmail);
+
+            // ✅ CORRECTION: Passer les 3 paramètres requis
             walletService.connectWallet(userId, request.getWalletAddress(), currentUserEmail);
 
-            Map<String, Object> response = new HashMap<>();
+            System.out.println("✅ [DEBUG] Service exécuté sans erreur");
+
+            Map<String, String> response = new HashMap<>();
             response.put("message", "Wallet connecté avec succès");
             response.put("userId", userId);
             response.put("walletAddress", request.getWalletAddress());
             return ResponseEntity.ok(response);
 
         } catch (IllegalArgumentException e) {
+            // 🔍 LOG 3 : Voir l'erreur de validation
+            System.err.println("⚠️ [ERREUR] Validation échouée : " + e.getMessage());
+            e.printStackTrace();
+
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("message", e.getMessage());
             errorResponse.put("status", "error");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+
         } catch (Exception e) {
+            // 🔍 LOG 4 : Voir les crashs inattendus
+            System.err.println("❌ [CRITICAL] Erreur inattendue : " + e.getMessage());
+            e.printStackTrace();
+
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("message", "Erreur interne: " + e.getMessage());
             errorResponse.put("status", "error");

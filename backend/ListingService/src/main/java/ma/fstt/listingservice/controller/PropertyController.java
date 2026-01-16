@@ -558,4 +558,60 @@ public class PropertyController {
         }
     }
 
+
+    @GetMapping("/{propertyId}/wallet-address")
+    public ResponseEntity<?> getPropertyWalletAddress(@PathVariable String propertyId) {
+        try {
+            log.info("🔍 Fetching wallet address for property: {}", propertyId);
+
+            // ✅ CORRECTION: Utiliser getPropertyByPropertyId au lieu de getPropertyById
+            PropertyDto propertyDto = propertyService.getPropertyByPropertyId(propertyId);
+
+            if (propertyDto == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Property not found");
+                error.put("propertyId", propertyId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+
+            // ✅ CORRECTION: Utiliser getUserId() au lieu de getOwnerId()
+            String ownerId = propertyDto.getUserId();
+            if (ownerId == null) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Property has no owner");
+                error.put("propertyId", propertyId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+
+            // Récupérer l'adresse wallet via le service
+            String walletAddress = propertyService.getOwnerWalletAddress(ownerId);
+
+            if (walletAddress == null || walletAddress.trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Owner does not have a wallet address");
+                error.put("propertyId", propertyId);
+                error.put("ownerId", ownerId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+
+            // Retourner les informations
+            Map<String, String> response = new HashMap<>();
+            response.put("propertyId", propertyId);
+            response.put("ownerId", ownerId);
+            response.put("walletAddress", walletAddress);
+
+            log.info("✅ Wallet address found: property={}, owner={}, wallet={}",
+                    propertyId, ownerId, walletAddress);
+
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+            log.error("❌ Error fetching wallet address for property {}: {}", propertyId, e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            error.put("propertyId", propertyId);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
 }
